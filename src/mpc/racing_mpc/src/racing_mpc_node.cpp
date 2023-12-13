@@ -20,6 +20,7 @@
 #include "racing_mpc/racing_mpc_node.hpp"
 #include "racing_mpc/ros_param_loader.hpp"
 
+
 namespace lmpc
 {
 namespace mpc
@@ -43,12 +44,13 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   model_(vehicle_model::vehicle_model_factory::load_vehicle_model(
       utils::declare_parameter<std::string>(
         this, "racing_mpc_node.vehicle_model_name"), this)),
-  mpc_(std::make_shared<RacingMPC>(config_, model_, false)),
+  mpc_(std::make_shared<RacingMPC>(config_, model_, true)),
   profiler_(std::make_unique<lmpc::utils::CycleProfiler<double>>(10)),
   profiler_iter_count_(std::make_unique<lmpc::utils::CycleProfiler<double>>(10)),
   speed_scale_(utils::declare_parameter<double>(this, "racing_mpc_node.velocity_profile_scale")),
   f2g_(track_->frenet_to_global_function().map(mpc_->get_config().N))
 {
+
   // add a full dynamics MPC solver for the problem initialization
   auto full_config = std::make_shared<RacingMPCConfig>(*config_);
   full_config->max_cpu_time = 10.0;
@@ -70,8 +72,9 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   const auto x_sym = casadi::MX::sym("x", model_->nx());
   const auto u_sym = casadi::MX::sym("u", model_->nu());
   const auto k = track_->curvature_interpolation_function()(x_sym(XIndex::PX))[0];
+  const auto bank_angle = track_->bank_interpolation_function()(x_sym(XIndex::PX))[0];
   const auto xip1 = model_->discrete_dynamics()(
-    casadi::MXDict{{"x", x_sym}, {"u", u_sym}, {"k", k}, {"dt", dt_}}
+    casadi::MXDict{{"x", x_sym}, {"u", u_sym}, {"k", k}, {"dt", dt_}, {"bank", bank_angle}}
   ).at("xip1");
   discrete_dynamics_ = casadi::Function("discrete_dynamics", {x_sym, u_sym}, {xip1});
 
@@ -206,6 +209,8 @@ void RacingMPCNode::on_step_timer()
 
   // std::cout << "x_ic: " << x_ic << std::endl;
 
+
+
   // if the mpc is not solved, pass the initial guess
   if (!mpc_full_->solved()) {
     last_x_ = DM::zeros(mpc_->get_model().nx(), N);
@@ -263,6 +268,10 @@ void RacingMPCNode::on_step_timer()
   const auto right_ref = track_->right_boundary_interpolation_function()(abscissa)[0];
   const auto curvature_ref = track_->curvature_interpolation_function()(abscissa)[0];
   auto vel_ref = track_->velocity_interpolation_function()(abscissa)[0];
+  //pull the bank angle from the interpolation fnctn
+  auto bank_angle = track_->bank_interpolation_function()(abscissa)[0];
+
+
   // cap the velocity by the speed limit
   std::shared_lock<std::shared_mutex> speed_limit_lock(speed_limit_mutex_);
   std::shared_lock<std::shared_mutex> speed_scale_lock(speed_scale_mutex_);
@@ -290,6 +299,9 @@ void RacingMPCNode::on_step_timer()
   sol_in_["bound_right"] = right_ref;
   sol_in_["curvatures"] = curvature_ref;
   sol_in_["vel_ref"] = vel_ref;
+  std::cout<<bank_angle<<std::endl;
+  sol_in_["bank_angle"] = bank_angle;
+
 
   // solve the mpc
   auto sol_out = casadi::DMDict{};
@@ -364,7 +376,7 @@ void RacingMPCNode::on_step_timer()
       rclcpp::sleep_for(
         std::chrono::duration_cast<std::chrono::nanoseconds>(
           std::chrono::duration<double>(dt_) - mpc_solve_duration));
-    }
+    }                                                                
   }
 
   // record the MPC publish time
@@ -559,8 +571,10 @@ void RacingMPCNode::change_trajectory(const int & traj_idx)
     const auto x_sym = casadi::MX::sym("x", model_->nx());
     const auto u_sym = casadi::MX::sym("u", model_->nu());
     const auto k = track_->curvature_interpolation_function()(x_sym(XIndex::PX))[0];
+    const auto bank_angle = track_->bank_interpolation_function()(x_sym(XIndex::PX))[0];
+
     const auto xip1 = model_->discrete_dynamics()(
-      casadi::MXDict{{"x", x_sym}, {"u", u_sym}, {"k", k}, {"dt", dt_}}
+      casadi::MXDict{{"x", x_sym}, {"u", u_sym}, {"k", k}, {"dt", dt_}, {"bank", bank_angle}}
     ).at("xip1");
     discrete_dynamics_ = casadi::Function("discrete_dynamics", {x_sym, u_sym}, {xip1});
 

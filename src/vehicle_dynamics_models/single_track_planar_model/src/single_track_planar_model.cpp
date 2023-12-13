@@ -16,6 +16,7 @@
 #include "single_track_planar_model/single_track_planar_model.hpp"
 #include "lmpc_utils/utils.hpp"
 #define GRAVITY 9.8
+#define pi 3.14153
 
 namespace lmpc
 {
@@ -200,7 +201,7 @@ void SingleTrackPlanarModel::compile_dynamics()
   const auto u = SX::sym("u", nu());
   const auto k = SX::sym("k", 1);  // curvature for frenet frame
   const auto dt = SX::sym("dt", 1);  // time step
-
+  const auto bank = SX::sym("bank", 1);
   const auto & py = x(XIndex::PY);
   const auto & phi = x(XIndex::YAW);  // yaw
   const auto & omega = x(XIndex::VYAW);  // yaw rate
@@ -253,25 +254,27 @@ void SingleTrackPlanarModel::compile_dynamics()
   // const auto & Fz0_r = tyre_r.pacejka_fz0;  // magic formula Fz0 - rear
   // const auto & eps_r = tyre_r.pacejka_eps;  // extended magic formula epsilon - rear
 
+
+  const auto N = m * GRAVITY * cos(bank) + (m * (v_sq)/ (1/k)) * abs(sin(bank)); //normal force
   // longitudinal tyre force Fx (eq. 4a, 4b)
   // TODO(haoru): consider differential
-  const auto Fx_f = 0.5 * kd_f * fd + 0.5 * kb_f * fb - 0.5 * fr * m * GRAVITY * lr / l;
+  const auto Fx_f = 0.5 * kd_f * fd + 0.5 * kb_f * fb - 0.5 * fr * N * lr / l;
   const auto Fx_fl = Fx_f;
   // const auto Fx_fr = Fx_f;
-  const auto Fx_r = 0.5 * (1 - kd_f) * fd + 0.5 * (1.0 - kb_f) * fb - 0.5 * fr * m * GRAVITY * lf /
+  const auto Fx_r = 0.5 * (1 - kd_f) * fd + 0.5 * (1.0 - kb_f) * fb - 0.5 * fr * N * lf /
     l;
   const auto Fx_rl = Fx_r;
   // const auto Fx_rr = Fx_r;
 
   // longitudinal acceleration (eq. 9)
-  const auto ax = (fd + fb - 0.5 * cd * A * v_sq - fr * m * GRAVITY) / m;
+  const auto ax = (fd + fb - 0.5 * cd * A * v_sq - fr * N) / m;
 
   // vertical tyre force Fz (eq. 7a, 7b)
-  const auto Fz_f = 0.5 * m * GRAVITY * lr / (lf + lr) - 0.5 * hcog / (lf + lr) * m * ax + 0.25 *
+  const auto Fz_f = 0.5 * N * lr / (lf + lr) - 0.5 * hcog / (lf + lr) * m * ax + 0.25 *
     cl_f * rho * A * v_sq;
   const auto Fz_fl = Fz_f;
   // const auto Fz_fr = Fz_f;
-  const auto Fz_r = 0.5 * m * GRAVITY * lf / (lf + lr) + 0.5 * hcog / (lf + lr) * m * ax + 0.25 *
+  const auto Fz_r = 0.5 * N *lf / (lf + lr) + 0.5 * hcog / (lf + lr) * m * ax + 0.25 *
     cl_r * rho * A * v_sq;
   const auto Fz_rl = Fz_r;
   // const auto Fz_rr = Fz_r;
@@ -315,12 +318,12 @@ void SingleTrackPlanarModel::compile_dynamics()
     ((2 * Fx_rl) + (2 * Fx_fl) * cos(delta) - (2 * Fy_fl) * sin(delta) -
     0.5 * cd * rho * A * v_sq) + omega * vy;
   const auto vy_dot = 1.0 / m *
-    ((2 * Fy_rl) + (2 * Fy_fl) * cos(delta) + (2 * Fx_fl) * sin(delta)) -
-    omega * vx;
+    ((2 * Fy_rl) + (2 * Fy_fl) * cos(delta) + (2 * Fx_fl) * sin(delta) + m* GRAVITY * abs(sin(bank))) -
+    omega * vx ;
 
-  // global frame acceleration px_dot, py_dot
+  // global frame acceleration px_dot, py_dot 
   auto px_dot = vx * cos(phi) - vy * sin(phi);
-  auto py_dot = vx * sin(phi) + vy * cos(phi);
+  auto py_dot = vx * sin(phi) + vy * cos(phi); 
   auto phi_dot = omega;
 
   if (base_config_->modeling_config->use_frenet) {
@@ -336,9 +339,9 @@ void SingleTrackPlanarModel::compile_dynamics()
 
   dynamics_ = casadi::Function(
     "single_track_planar_model_dynamics",
-    {x, u, k},
+    {x, u, k, bank},
     {x_dot, Fx_ij, Fy_ij, Fz_ij},
-    {"x", "u", "k"},
+    {"x", "u", "k", "bank"},
     {"x_dot", "Fx_ij", "Fy_ij", "Fz_ij"});
 
   const auto Ac = SX::jacobian(x_dot, x);
@@ -346,9 +349,9 @@ void SingleTrackPlanarModel::compile_dynamics()
 
   dynamics_jacobian_ = casadi::Function(
     "single_track_planar_model_dynamics_jacobian",
-    {x, u, k},
+    {x, u, k, bank},
     {Ac, Bc},
-    {"x", "u", "k"},
+    {"x", "u", "k", "bank"},
     {"A", "B"}
   );
 
@@ -357,11 +360,11 @@ void SingleTrackPlanarModel::compile_dynamics()
   const auto & integrator_type = get_base_config().modeling_config->integrator_type;
   if (integrator_type == base_vehicle_model::IntegratorType::RK4) {
     xip1 = utils::rk4_function(nx(), nu(), dynamics_)(
-      casadi::SXDict{{"x", x}, {"u", u}, {"k", k}, {"dt", dt}}
+      casadi::SXDict{{"x", x}, {"u", u}, {"k", k}, {"dt", dt}, {"bank", bank}}
     ).at("xip1");
   } else if (integrator_type == base_vehicle_model::IntegratorType::EULER) {
     xip1 = utils::euler_function(nx(), nu(), dynamics_)(
-      casadi::SXDict{{"x", x}, {"u", u}, {"k", k}, {"dt", dt}}
+      casadi::SXDict{{"x", x}, {"u", u}, {"k", k}, {"dt", dt}, {"bank", bank}}
     ).at("xip1");
   } else {
     throw std::runtime_error("unsupported integrator type");
@@ -369,9 +372,9 @@ void SingleTrackPlanarModel::compile_dynamics()
 
   discrete_dynamics_ = casadi::Function(
     "single_track_planar_model_discrete_dynamics",
-    {x, u, k, dt},
+    {x, u, k, dt, bank},
     {xip1, Fx_ij, Fy_ij, Fz_ij},
-    {"x", "u", "k", "dt"},
+    {"x", "u", "k", "dt", "bank"},
     {"xip1", "Fx_ij", "Fy_ij", "Fz_ij"});
 
   const auto Ad = SX::jacobian(xip1, x);
@@ -380,9 +383,9 @@ void SingleTrackPlanarModel::compile_dynamics()
 
   discrete_dynamics_jacobian_ = casadi::Function(
     "single_track_planar_model_discrete_dynamics_jacobian",
-    {x, u, k, dt},
+    {x, u, k, dt, bank},
     {Ad, Bd, gd},
-    {"x", "u", "k", "dt"},
+    {"x", "u", "k", "dt", "bank"},
     {"A", "B", "g"}
   );
 

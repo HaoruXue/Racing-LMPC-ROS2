@@ -63,7 +63,6 @@ casadi::Function c2d_function(const casadi_int & nx, const casadi_int & nu, cons
   const auto B = exp_M(Slice(0, nx), Slice(nx, nx + nu));
   return casadi::Function("c2d", {Ac, Bc}, {A, B}, {"Ac", "Bc"}, {"A", "B"});
 }
-
 casadi::Function rk4_function(
   const casadi_int & nx, const casadi_int & nu, const double & dt,
   const casadi::Function & dynamics)
@@ -84,7 +83,6 @@ casadi::Function rk4_function(
   const auto out = x + dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4);
   return casadi::Function("rk4", {x, u, k}, {out}, {"x", "u", "k"}, {"xip1"});
 }
-
 casadi::Function rk4_function(
   const casadi_int & nx, const casadi_int & nu,
   const casadi::Function & dynamics)
@@ -94,17 +92,18 @@ casadi::Function rk4_function(
   const auto u = SX::sym("u", nu, 1);
   const auto dt = SX::sym("dt", 1, 1);
   const auto k = SX::sym("k", 1, 1);
+  const auto bank = SX::sym("k", 1, 1);
 
-  const auto out1 = dynamics(casadi::SXDict{{"x", x}, {"u", u}, {"k", k}});
+  const auto out1 = dynamics(casadi::SXDict{{"x", x}, {"u", u}, {"k", k}, {"bank", bank}});
   const auto k1 = out1.at("x_dot");
-  const auto out2 = dynamics(casadi::SXDict{{"x", x + dt / 2.0 * k1}, {"u", u}, {"k", k}});
+  const auto out2 = dynamics(casadi::SXDict{{"x", x + dt / 2.0 * k1}, {"u", u}, {"k", k}, {"bank", bank}});
   const auto k2 = out2.at("x_dot");
-  const auto out3 = dynamics(casadi::SXDict{{"x", x + dt / 2.0 * k2}, {"u", u}, {"k", k}});
+  const auto out3 = dynamics(casadi::SXDict{{"x", x + dt / 2.0 * k2}, {"u", u}, {"k", k}, {"bank", bank}});
   const auto k3 = out3.at("x_dot");
-  const auto out4 = dynamics(casadi::SXDict{{"x", x + dt * k3}, {"u", u}, {"k", k}});
+  const auto out4 = dynamics(casadi::SXDict{{"x", x + dt * k3}, {"u", u}, {"k", k}, {"bank", bank}});
   const auto k4 = out4.at("x_dot");
   const auto out = x + dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4);
-  return casadi::Function("rk4", {x, u, k, dt}, {out}, {"x", "u", "k", "dt"}, {"xip1"});
+  return casadi::Function("rk4", {x, u, k, dt, bank}, {out}, {"x", "u", "k", "dt", "bank"}, {"xip1"});
 }
 
 casadi::Function euler_function(
@@ -116,10 +115,12 @@ casadi::Function euler_function(
   const auto u = SX::sym("u", nu, 1);
   const auto dt = SX::sym("dt", 1, 1);
   const auto k = SX::sym("k", 1, 1);
+  const auto bank = SX::sym("k", 1, 1);
 
-  const auto x_dot = dynamics(casadi::SXDict{{"x", x}, {"u", u}, {"k", k}}).at("x_dot");
+
+  const auto x_dot = dynamics(casadi::SXDict{{"x", x}, {"u", u}, {"k", k}, {"bank", bank}}).at("x_dot");
   const auto out = x + dt * x_dot;
-  return casadi::Function("rk4", {x, u, k, dt}, {out}, {"x", "u", "k", "dt"}, {"xip1"});
+  return casadi::Function("rk4", {x, u, k, dt,bank}, {out}, {"x", "u", "k", "dt", "bank"}, {"xip1"});
 }
 }  // namespace utils
 }  // namespace lmpc

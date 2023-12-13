@@ -165,6 +165,8 @@ public:
    */
   casadi::Function & velocity_interpolation_function();
 
+  casadi::Function & bank_interpolation_function();
+
   const double & total_length() const;
 
 protected:
@@ -178,6 +180,7 @@ protected:
   casadi::Function x_intp_;  // interpolate global x
   casadi::Function y_intp_;  // interpolate global y
   casadi::Function vel_intp_;  // interpolate velocity
+  casadi::Function bank_intp_; //interpolate bank angle
   casadi::Function frenet_to_global_;  // frenet to global conversion function
   casadi::Function global_to_frenet_;  // global to frenet conversion function
   casadi::Function global_to_frenet_sol_;  // g_to_f qp solver

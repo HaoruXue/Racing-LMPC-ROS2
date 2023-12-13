@@ -51,6 +51,7 @@ RacingMPC::RacingMPC(
   bound_left_(opti_.parameter(1, config_->N)),
   bound_right_(opti_.parameter(1, config_->N)),
   total_length_(opti_.parameter(1, 1)),
+  bank_angle_(opti_.parameter(1,config_->N)),
   curvatures_(opti_.parameter(1, config_->N)),
   vel_ref_(opti_.parameter(1, config_->N)),
   solved_(false),
@@ -129,13 +130,14 @@ RacingMPC::RacingMPC(
     const auto ui = U_(Slice(), i) * scale_u_;
     const auto ti = T_ref_(i);
     const auto k = curvatures_(i);
+    const auto bank_angle = bank_angle_(i);
     casadi::MXDict constraint_in = {
       {"x", xi},
       {"u", ui},
       {"xip1", xip1},
       {"t", ti},
       {"k", k},
-      {"track_length", total_length_}
+      {"track_length", total_length_},
     };
 
     const auto dui = dU_(Slice(), i) * scale_u_;
@@ -162,7 +164,7 @@ RacingMPC::RacingMPC(
     if (full_dynamics) {
       // use full dynamics for dynamics constraints
       const auto xip1_pred =
-        model_->discrete_dynamics()({{"x", xi}, {"u", ui}, {"k", k}, {"dt", ti}}).at("xip1");
+        model_->discrete_dynamics()({{"x", xi}, {"u", ui}, {"k", k}, {"dt", ti},  {"bank", bank_angle}}).at("xip1");
       opti_.subject_to(xip1_pred - xip1 == 0);
     } else {
       // or use linearlized dynamics for dynamics constraints
@@ -173,9 +175,9 @@ RacingMPC::RacingMPC(
       const auto AB =
         model_->discrete_dynamics_jacobian()(
         {{"x", xi_ref}, {"u", ui_ref}, {"k", k},
-          {"dt", ti}});
+          {"dt", ti}, {"bank", bank_angle}});
       const auto x_ref_p1 =
-        model_->discrete_dynamics()({{"x", xi_ref}, {"u", ui_ref}, {"k", k}, {"dt", ti}}).at(
+        model_->discrete_dynamics()({{"x", xi_ref}, {"u", ui_ref}, {"k", k}, {"dt", ti},  {"bank", bank_angle}}).at(
         "xip1");
       const auto & A = AB.at("A");
       const auto & B = AB.at("B");
@@ -226,6 +228,7 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
   const auto & bound_right = in.at("bound_right");
   const auto & curvatures = in.at("curvatures");
   const auto & vel_ref = in.at("vel_ref");
+  const auto & bank_angle = in.at("bank_angle");
 
   // std::cout << "[x_ic]:\n" << x_ic << std::endl;
   // std::cout << "[u_ic]:\n" << u_ic << std::endl;
@@ -338,6 +341,7 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
   opti_.set_value(total_length_, total_length);
   opti_.set_value(curvatures_, curvatures);
   opti_.set_value(vel_ref_, vel_ref);
+  opti_.set_value(bank_angle_, bank_angle);
 
   // solve problem
   try {
