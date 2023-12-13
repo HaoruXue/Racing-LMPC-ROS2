@@ -5,8 +5,8 @@
       max_iter: 200
       tol: 1e-3
       n: 80
-      margin: -10.
-      average_track_width: 10.0
+      margin: 0.1
+      average_track_width: 0.085
       verbose: true
       jit: true
 
@@ -31,7 +31,7 @@
       u_max: [5.0, 0.314159]
       u_min: [-10.0, -0.314159]
 
-      step_mode: "step"
+      step_mode: "continuous"
 
       # LMPC
       learning: false

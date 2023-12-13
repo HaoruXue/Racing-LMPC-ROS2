@@ -44,7 +44,7 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   model_(vehicle_model::vehicle_model_factory::load_vehicle_model(
       utils::declare_parameter<std::string>(
         this, "racing_mpc_node.vehicle_model_name"), this)),
-  mpc_(std::make_shared<RacingMPC>(config_, model_, true)),
+  mpc_(std::make_shared<RacingMPC>(config_, model_, false)),
   profiler_(std::make_unique<lmpc::utils::CycleProfiler<double>>(10)),
   profiler_iter_count_(std::make_unique<lmpc::utils::CycleProfiler<double>>(10)),
   speed_scale_(utils::declare_parameter<double>(this, "racing_mpc_node.velocity_profile_scale")),
