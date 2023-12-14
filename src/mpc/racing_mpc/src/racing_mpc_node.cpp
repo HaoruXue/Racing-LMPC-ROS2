@@ -279,6 +279,7 @@ void RacingMPCNode::on_step_timer()
     // clip the velocity reference within +- 20m/s of current speed
     const auto current_speed = static_cast<double>(last_x_(XIndex::VX, i));
     const auto ref_speed = static_cast<double>(vel_ref(i)) * speed_scale_;
+    std::cout<<ref_speed<<std::endl;
     const auto speed_limit_clipped = std::clamp(
       this->speed_limit_, current_speed - config_->max_vel_ref_diff,
       current_speed + config_->max_vel_ref_diff);
