@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
     racing_mpc:
-      max_cpu_time: 10.
+      max_cpu_time: .02
       max_iter: 200
       tol: 1e-3
       n: 80
