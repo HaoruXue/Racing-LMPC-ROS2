@@ -31,7 +31,7 @@
       u_max: [5.0, 0.314159]
       u_min: [-10.0, -0.314159]
 
-      step_mode: "continuous"
+      step_mode: "step"
 
       # LMPC
       learning: false
