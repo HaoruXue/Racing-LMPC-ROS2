@@ -46,11 +46,11 @@
       turn_left_bias: 0.0
 
     chassis:
-      total_mass: 811.9303
+      total_mass: 747.52
       # total_mass: 700.0
       sprung_mass: 131.0
       unsprung_mass: 680.9303
-      cg_ratio: 0.45
+      cg_ratio: 0.4211
       cg_height: 0.35
       wheel_base: 2.9718
       tw_f: 1.6
