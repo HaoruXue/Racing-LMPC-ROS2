@@ -59,7 +59,8 @@ RacingMPC::RacingMPC(
   ss_manager_(std::make_unique<SafeSetManager>(config_->max_lap_stored)),
   ss_recorder_(std::make_unique<SafeSetRecorder>(
       *ss_manager_, config_->record,
-      config_->path_prefix))
+      config_->path_prefix)),
+  full_dynamics_(full_dynamics)
 {
   using casadi::MX;
   using casadi::Slice;
@@ -244,9 +245,9 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
   // std::cout << "[curvatures]\n:" << curvatures << std::endl;
   // std::cout << "[vel_ref]\n:" << vel_ref << std::endl;
 
-  if (!ss_loaded && config_->load) {
+  if (!ss_loaded_ && config_->load) {
     ss_recorder_->load(config_->load_path, static_cast<double>(total_length));
-    ss_loaded = true;
+    ss_loaded_ = true;
   }
 
   // add current state to safe set

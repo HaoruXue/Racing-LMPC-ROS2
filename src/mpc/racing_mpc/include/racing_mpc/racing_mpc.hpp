@@ -99,7 +99,10 @@ protected:
   // LMPC
   SafeSetManager::UniquePtr ss_manager_;
   SafeSetRecorder::UniquePtr ss_recorder_;
-  bool ss_loaded = false;
+  bool ss_loaded_ = false;
+
+  // nonlinear MPC or convex MPC
+  bool full_dynamics_;
 
   // helper functions
   void build_tracking_cost(casadi::MX & cost);

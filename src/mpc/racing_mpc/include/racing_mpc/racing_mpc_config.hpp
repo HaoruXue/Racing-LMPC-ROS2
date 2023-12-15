@@ -49,6 +49,7 @@ struct RacingMPCConfig
   double average_track_width;  // averange track width for scaling the variables
   bool verbose;  // print debug
   bool jit;  // use jit compilation
+  size_t num_mpc;  // number of mpcs in safety reserve
   RacingMPCStepMode step_mode = RacingMPCStepMode::STEP;
 
   // MPC settings

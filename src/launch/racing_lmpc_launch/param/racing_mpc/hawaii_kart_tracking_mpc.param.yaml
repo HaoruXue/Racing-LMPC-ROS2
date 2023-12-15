@@ -9,6 +9,7 @@
       average_track_width: 4.0
       verbose: false
       jit: false
+      num_mpc: 1
 
       q_contour: 0.3
       q_heading: 0.5

@@ -212,7 +212,7 @@ void RacingMPCNode::on_step_timer()
   // if the mpc is not solved, pass the initial guess
   if (!mpc_full_->solved()) {
     last_x_ = DM::zeros(mpc_->get_model().nx(), N);
-    last_u_ = DM::zeros(mpc_->get_model().nu(), N - 1) + 1e-9;
+    last_u_ = DM::zeros(mpc_->get_model().nu(), N - 1);
     last_du_ = DM::zeros(mpc_->get_model().nu(), N - 1);
     if (config_->learning) {
       last_convex_combi_ = DM::zeros(config_->num_ss_pts);
@@ -245,11 +245,13 @@ void RacingMPCNode::on_step_timer()
     } else {
       throw std::runtime_error("Unknown RacingMPCStepMode");
     }
+    // shift the previous solution to be the initial guess
     last_x_ = DM::horzcat({last_x_(Slice(), Slice(1, N)), DM::zeros(model_->nx(), 1)});
     last_u_ = DM::horzcat({last_u_(Slice(), Slice(1, N - 1)), last_u_(Slice(), Slice(N - 2))});
     last_du_ = DM::horzcat({last_du_(Slice(), Slice(1, N - 1)), DM::zeros(model_->nu(), 1)});
     last_x_(Slice(), -1) =
       discrete_dynamics_(casadi::DMVector{last_x_(Slice(), -2), last_u_(Slice(), -1)})[0];
+
     sol_in_["X_ref"] = last_x_;
     sol_in_["U_ref"] = last_u_;
     sol_in_["X_optm_ref"] = last_x_;
@@ -267,15 +269,13 @@ void RacingMPCNode::on_step_timer()
   const auto right_ref = track_->right_boundary_interpolation_function()(abscissa)[0];
   const auto curvature_ref = track_->curvature_interpolation_function()(abscissa)[0];
   auto vel_ref = track_->velocity_interpolation_function()(abscissa)[0];
-  // pull the bank angle from the interpolation fnctn
   auto bank_angle = track_->bank_interpolation_function()(abscissa)[0];
-
 
   // cap the velocity by the speed limit
   std::shared_lock<std::shared_mutex> speed_limit_lock(speed_limit_mutex_);
   std::shared_lock<std::shared_mutex> speed_scale_lock(speed_scale_mutex_);
   for (casadi_int i = 0; i < static_cast<casadi_int>(config_->N); i++) {
-    // clip the velocity reference within +- 20m/s of current speed
+    // clip the velocity reference within +- max_vel_ref_diff m/s of current speed
     const auto current_speed = static_cast<double>(last_x_(XIndex::VX, i));
     const auto ref_speed = static_cast<double>(vel_ref(i)) * speed_scale_;
     const auto speed_limit_clipped = std::clamp(
@@ -299,7 +299,6 @@ void RacingMPCNode::on_step_timer()
   sol_in_["curvatures"] = curvature_ref;
   sol_in_["vel_ref"] = vel_ref;
   sol_in_["bank_angle"] = bank_angle;
-
 
   // solve the mpc
   auto sol_out = casadi::DMDict{};
