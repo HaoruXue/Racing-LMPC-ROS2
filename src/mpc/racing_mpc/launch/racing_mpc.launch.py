@@ -38,8 +38,7 @@ def get_sim_time_launch_arg():
 
 def generate_launch_description():
     declare_use_sim_time_cmd, use_sim_time = get_sim_time_launch_arg()
-    mpc_config = get_share_file(
-        "racing_mpc", "param", "sample_mpc_2.param.yaml")
+    mpc_config = get_share_file("racing_mpc", "param", "sample_mpc_2.param.yaml")
     dt_model_config = (
         get_share_file("single_track_planar_model"),
         "/param/",
@@ -50,8 +49,7 @@ def generate_launch_description():
         "/param/",
         "sample_vehicle_2.param.yaml",
     )
-    track_file = get_share_file(
-        "racing_trajectory", "test_data", "mgkt")
+    track_file = get_share_file("racing_trajectory", "test_data", "mgkt")
 
     return LaunchDescription(
         [
@@ -74,8 +72,7 @@ def generate_launch_description():
                         "racing_mpc_node.velocity_profile_scale": 1.0,
                     },
                 ],
-                remappings=[
-                ],
+                remappings=[],
                 emulate_tty=True,
             ),
         ]

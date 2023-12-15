@@ -118,7 +118,7 @@ RacingTrajectory::RacingTrajectory(const casadi::DM & traj)
     x_intp_ = Function("x_intp", {s}, {x_intp(s_mod)});
     y_intp_ = Function("y_intp", {s}, {y_intp(s_mod)});
     vel_intp_ = Function("vel_intp", {s}, {vel_intp(s_mod)});
-    bank_intp_ = Function("bank_intp",{s}, {bank_intp(s_mod)} );
+    bank_intp_ = Function("bank_intp", {s}, {bank_intp(s_mod)});
   }
 
   // build the frenet to global transformation

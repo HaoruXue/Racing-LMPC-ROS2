@@ -210,7 +210,6 @@ void RacingMPCNode::on_step_timer()
   // std::cout << "x_ic: " << x_ic << std::endl;
 
 
-
   // if the mpc is not solved, pass the initial guess
   if (!mpc_full_->solved()) {
     last_x_ = DM::zeros(mpc_->get_model().nx(), N);
@@ -255,7 +254,7 @@ void RacingMPCNode::on_step_timer()
     sol_in_["X_ref"] = last_x_;
     sol_in_["U_ref"] = last_u_;
     sol_in_["X_optm_ref"] = last_x_;
-    
+
     sol_in_["U_optm_ref"] = last_u_;
     sol_in_["dU_optm_ref"] = last_du_;
     if (config_->learning) {
@@ -280,7 +279,7 @@ void RacingMPCNode::on_step_timer()
     // clip the velocity reference within +- 20m/s of current speed
     const auto current_speed = static_cast<double>(last_x_(XIndex::VX, i));
     const auto ref_speed = static_cast<double>(vel_ref(i)) * speed_scale_;
-    std::cout<<ref_speed<<std::endl;
+    std::cout << ref_speed << std::endl;
     const auto speed_limit_clipped = std::clamp(
       this->speed_limit_, current_speed - config_->max_vel_ref_diff,
       current_speed + config_->max_vel_ref_diff);
@@ -291,11 +290,11 @@ void RacingMPCNode::on_step_timer()
         ref_speed, current_speed - config_->max_vel_ref_diff,
         current_speed + config_->max_vel_ref_diff);
       vel_ref(i) = std::min(ref_speed_clipped, speed_limit_clipped);
-      std::cout<<ref_speed_clipped<<std::endl;
+      std::cout << ref_speed_clipped << std::endl;
     } else {
       vel_ref(i) = speed_limit_clipped;
     }
-    
+
   }
   speed_limit_lock.unlock();
   speed_scale_lock.unlock();
@@ -303,7 +302,7 @@ void RacingMPCNode::on_step_timer()
   sol_in_["bound_right"] = right_ref;
   sol_in_["curvatures"] = curvature_ref;
   sol_in_["vel_ref"] = vel_ref;
-  std::cout<<bank_angle<<std::endl;
+  std::cout << bank_angle << std::endl;
   sol_in_["bank_angle"] = bank_angle;
 
 
@@ -338,7 +337,7 @@ void RacingMPCNode::on_step_timer()
 
   if (sol_out.count("X_optm")) {
     last_x_ = sol_out["X_optm"];
-    std::cout<<last_x_(Slice(XIndex::YAW + 3))<<std::endl;
+    std::cout << last_x_(Slice(XIndex::YAW + 3)) << std::endl;
 
     last_u_ = sol_out["U_optm"];
     last_du_ = sol_out["dU_optm"];
@@ -383,7 +382,7 @@ void RacingMPCNode::on_step_timer()
       rclcpp::sleep_for(
         std::chrono::duration_cast<std::chrono::nanoseconds>(
           std::chrono::duration<double>(dt_) - mpc_solve_duration));
-    }                                                                
+    }
   }
 
   // record the MPC publish time

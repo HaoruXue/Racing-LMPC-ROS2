@@ -18,6 +18,7 @@ from ament_index_python import get_package_share_directory
 from launch.substitutions import LaunchConfiguration
 from launch.actions import DeclareLaunchArgument
 
+
 def get_share_file(package_name, *args):
     return os.path.join(get_package_share_directory(package_name), *args)
 

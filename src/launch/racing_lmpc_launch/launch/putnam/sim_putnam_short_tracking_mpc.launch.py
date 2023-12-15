@@ -25,17 +25,21 @@ from lmpc_utils.lmpc_launch_utils import get_share_file, get_sim_time_launch_arg
 def generate_launch_description():
     declare_use_sim_time_cmd, use_sim_time = get_sim_time_launch_arg()
     sim_config = get_share_file(
-        "racing_lmpc_launch", "param", "racing_simulator", "continuous_simulator.param.yaml")
+        "racing_lmpc_launch", "param", "racing_simulator", "continuous_simulator.param.yaml"
+    )
     dt_model_config = get_share_file(
-        "racing_lmpc_launch", "param", "iac_car", "iac_car_single_track.param.yaml")
+        "racing_lmpc_launch", "param", "iac_car", "iac_car_single_track.param.yaml"
+    )
     base_model_config = get_share_file(
-        "racing_lmpc_launch", "param", "iac_car", "iac_car_base.param.yaml")
+        "racing_lmpc_launch", "param", "iac_car", "iac_car_base.param.yaml"
+    )
     mpc_config = get_share_file(
-        "racing_lmpc_launch", "param", "racing_mpc", "iac_car_tracking_mpc.param.yaml")
+        "racing_lmpc_launch", "param", "racing_mpc", "iac_car_tracking_mpc.param.yaml"
+    )
     sim_track_file = get_share_file(
-        "racing_trajectory", "test_data", "putnam_short", "08_putnam_short_optm.txt")
-    track_file_folder = get_share_file(
-        "racing_trajectory", "test_data", "putnam_short")
+        "racing_trajectory", "test_data", "putnam_short", "08_putnam_short_optm.txt"
+    )
+    track_file_folder = get_share_file("racing_trajectory", "test_data", "putnam_short")
 
     return LaunchDescription(
         [
@@ -86,8 +90,7 @@ def generate_launch_description():
                         "racing_mpc_node.delay_step": 0,
                     },
                 ],
-                remappings=[
-                ],
+                remappings=[],
                 # prefix=['taskset -c 22,23'],
                 emulate_tty=True,
             ),

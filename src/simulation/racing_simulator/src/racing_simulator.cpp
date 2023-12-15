@@ -55,7 +55,7 @@ RacingSimulator::RacingSimulator(
   }
 
   auto xip1 = model_->discrete_dynamics()(
-    casadi::MXDict{{"x", x_sym}, {"u", u_sym}, {"k", k}, {"dt", dt_},{"bank", bank}}
+    casadi::MXDict{{"x", x_sym}, {"u", u_sym}, {"k", k}, {"dt", dt_}, {"bank", bank}}
   ).at("xip1");
   const auto x_dot = model_->dynamics()(
     casadi::MXDict{{"x", x_sym}, {"u", u_sym}, {"k", k}, {"bank", bank}}

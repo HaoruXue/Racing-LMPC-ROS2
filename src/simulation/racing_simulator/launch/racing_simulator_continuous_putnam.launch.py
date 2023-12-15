@@ -38,8 +38,7 @@ def get_sim_time_launch_arg():
 
 def generate_launch_description():
     declare_use_sim_time_cmd, use_sim_time = get_sim_time_launch_arg()
-    sim_config = get_share_file(
-        "racing_simulator", "param", "continuous_simulator.param.yaml")
+    sim_config = get_share_file("racing_simulator", "param", "continuous_simulator.param.yaml")
     dt_model_config = (
         get_share_file("single_track_planar_model"),
         "/param/",
@@ -51,7 +50,8 @@ def generate_launch_description():
         "sample_vehicle.param.yaml",
     )
     track_file = get_share_file(
-        "racing_trajectory", "test_data", "putnam_short", "15_putnam_short_optm.txt")
+        "racing_trajectory", "test_data", "putnam_short", "15_putnam_short_optm.txt"
+    )
 
     return LaunchDescription(
         [
@@ -76,8 +76,7 @@ def generate_launch_description():
                         # "racing_simulator.x0": [-67.9, 247.6, -2.61799, 15.0, 0.0, 0.0]
                     },
                 ],
-                remappings=[
-                ],
+                remappings=[],
                 emulate_tty=True,
             ),
         ]

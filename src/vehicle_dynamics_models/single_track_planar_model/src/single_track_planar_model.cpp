@@ -255,7 +255,7 @@ void SingleTrackPlanarModel::compile_dynamics()
   // const auto & eps_r = tyre_r.pacejka_eps;  // extended magic formula epsilon - rear
 
   // TODO: vsq should be decomposed in direction of race track
-  const auto N = m * GRAVITY * cos(bank) + (m * (v_sq)* (k)) * abs(sin(bank)); //normal force
+  const auto N = m * GRAVITY * cos(bank) + (m * (v_sq) * (k)) * abs(sin(bank)); //normal force
   // longitudinal tyre force Fx (eq. 4a, 4b)
   // TODO(haoru): consider differential
   const auto Fx_f = 0.5 * kd_f * fd + 0.5 * kb_f * fb - 0.5 * fr * N * lr / l;
@@ -274,7 +274,7 @@ void SingleTrackPlanarModel::compile_dynamics()
     cl_f * rho * A * v_sq;
   const auto Fz_fl = Fz_f;
   // const auto Fz_fr = Fz_f;
-  const auto Fz_r = 0.5 * N *lf / (lf + lr) + 0.5 * hcog / (lf + lr) * m * ax + 0.25 *
+  const auto Fz_r = 0.5 * N * lf / (lf + lr) + 0.5 * hcog / (lf + lr) * m * ax + 0.25 *
     cl_r * rho * A * v_sq;
   const auto Fz_rl = Fz_r;
   // const auto Fz_rr = Fz_r;
@@ -320,12 +320,13 @@ void SingleTrackPlanarModel::compile_dynamics()
     ((2 * Fx_rl) + (2 * Fx_fl) * cos(delta) - (2 * Fy_fl) * sin(delta) -
     0.5 * cd * rho * A * v_sq) + omega * vy;
   const auto vy_dot = 1.0 / m *
-    ((2 * Fy_rl) + (2 * Fy_fl) * cos(delta) + (2 * Fx_fl) * sin(delta) - m* GRAVITY * (sin(bank))) -
-    omega * vx ;
+    ((2 * Fy_rl) + (2 * Fy_fl) * cos(delta) + (2 * Fx_fl) * sin(delta) - m * GRAVITY *
+    (sin(bank))) -
+    omega * vx;
 
-  // global frame acceleration px_dot, py_dot 
+  // global frame acceleration px_dot, py_dot
   auto px_dot = vx * cos(phi) - vy * sin(phi);
-  auto py_dot = vx * sin(phi) + vy * cos(phi); 
+  auto py_dot = vx * sin(phi) + vy * cos(phi);
   auto phi_dot = omega;
 
   if (base_config_->modeling_config->use_frenet) {

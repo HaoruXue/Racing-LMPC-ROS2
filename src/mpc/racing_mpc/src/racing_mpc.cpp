@@ -51,7 +51,7 @@ RacingMPC::RacingMPC(
   bound_left_(opti_.parameter(1, config_->N)),
   bound_right_(opti_.parameter(1, config_->N)),
   total_length_(opti_.parameter(1, 1)),
-  bank_angle_(opti_.parameter(1,config_->N)),
+  bank_angle_(opti_.parameter(1, config_->N)),
   curvatures_(opti_.parameter(1, config_->N)),
   vel_ref_(opti_.parameter(1, config_->N)),
   solved_(false),
@@ -164,7 +164,9 @@ RacingMPC::RacingMPC(
     if (full_dynamics) {
       // use full dynamics for dynamics constraints
       const auto xip1_pred =
-        model_->discrete_dynamics()({{"x", xi}, {"u", ui}, {"k", k}, {"dt", ti},  {"bank", bank_angle}}).at("xip1");
+        model_->discrete_dynamics()(
+        {{"x", xi}, {"u", ui}, {"k", k}, {"dt", ti},
+          {"bank", bank_angle}}).at("xip1");
       opti_.subject_to(xip1_pred - xip1 == 0);
     } else {
       // or use linearlized dynamics for dynamics constraints
@@ -177,7 +179,9 @@ RacingMPC::RacingMPC(
         {{"x", xi_ref}, {"u", ui_ref}, {"k", k},
           {"dt", ti}, {"bank", bank_angle}});
       const auto x_ref_p1 =
-        model_->discrete_dynamics()({{"x", xi_ref}, {"u", ui_ref}, {"k", k}, {"dt", ti},  {"bank", bank_angle}}).at(
+        model_->discrete_dynamics()(
+        {{"x", xi_ref}, {"u", ui_ref}, {"k", k}, {"dt", ti},
+          {"bank", bank_angle}}).at(
         "xip1");
       const auto & A = AB.at("A");
       const auto & B = AB.at("B");
