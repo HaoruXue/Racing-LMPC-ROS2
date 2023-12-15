@@ -33,7 +33,7 @@ def generate_launch_description():
     mpc_config = get_share_file(
         "racing_lmpc_launch", "param", "racing_mpc", "LVMS_tracking_mpc.param.yaml")
     sim_track_file = get_share_file(
-        "racing_trajectory", "test_data", "LVMS", "15_LVMS_optm.txt")
+        "racing_trajectory", "test_data", "LVMS", "20_LVMS_optm.txt")
     track_file_folder = get_share_file(
         "racing_trajectory", "test_data", "LVMS")
 
@@ -82,7 +82,7 @@ def generate_launch_description():
                     {
                         "racing_mpc_node.dt": 0.025,
                         "racing_mpc_node.vehicle_model_name": "single_track_planar_model",
-                        "racing_mpc_node.default_traj_idx": 15,
+                        "racing_mpc_node.default_traj_idx": 20,
                         "racing_mpc_node.traj_folder": track_file_folder,
                         "racing_mpc_node.velocity_profile_scale": 0.9,
                         "racing_mpc_node.delay_step": 0,
