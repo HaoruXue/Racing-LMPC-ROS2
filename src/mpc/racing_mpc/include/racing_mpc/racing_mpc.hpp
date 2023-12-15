@@ -63,9 +63,6 @@ protected:
 
   casadi::DM scale_x_;
   casadi::DM scale_u_;
-  casadi::Function g_to_f_;
-  casadi::Function norm_2_;
-  casadi::Function align_yaw_;
   casadi::Function align_abscissa_;
   casadi::Opti opti_;
 
