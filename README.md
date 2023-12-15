@@ -28,10 +28,10 @@ https://github.com/HaoruXue/Racing-LMPC-ROS2/assets/32390737/745e5f15-f159-42ad-
 cd Racing-LMPC-ROS2
 git checkout humble-release
 # Install rosdep dependencies
-rosdep update
-rosdep install --from-paths src --ignore-src -r -y
+source /opt/ros/<ros2-distro>/setup.bash
+make rosdep-install
 # Build
-colcon build --packages-up-to racing_lmpc_launch --cmake-args -DCMAKE_BUILD_TYPE=Release
+make
 ```
 
 ### Run LMPC
