@@ -34,9 +34,9 @@ jobs:
       - name: Build Workspace
         run: |
           bash -c 'source /opt/ros/$ROS_DISTRO/setup.bash; \
-          colcon build --event-handlers console_cohesion+'
-      - name: Run Tests
-        run: |
-          bash -c 'source /opt/ros/$ROS_DISTRO/setup.bash; \
-          # colcon test --event-handlers console_cohesion+; \
-          # colcon test-result --verbose'
+          colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release --packages-up-to racing_lmpc_launch --event-handlers console_cohesion+'
+      # - name: Run Tests
+      #   run: |
+      #     bash -c 'source /opt/ros/$ROS_DISTRO/setup.bash; \
+      #     # colcon test --event-handlers console_cohesion+; \
+      #     # colcon test-result --verbose'
