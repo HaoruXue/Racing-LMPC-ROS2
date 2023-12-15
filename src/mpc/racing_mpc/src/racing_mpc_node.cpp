@@ -255,6 +255,7 @@ void RacingMPCNode::on_step_timer()
     sol_in_["X_ref"] = last_x_;
     sol_in_["U_ref"] = last_u_;
     sol_in_["X_optm_ref"] = last_x_;
+    
     sol_in_["U_optm_ref"] = last_u_;
     sol_in_["dU_optm_ref"] = last_du_;
     if (config_->learning) {
@@ -290,9 +291,11 @@ void RacingMPCNode::on_step_timer()
         ref_speed, current_speed - config_->max_vel_ref_diff,
         current_speed + config_->max_vel_ref_diff);
       vel_ref(i) = std::min(ref_speed_clipped, speed_limit_clipped);
+      std::cout<<ref_speed_clipped<<std::endl;
     } else {
       vel_ref(i) = speed_limit_clipped;
     }
+    
   }
   speed_limit_lock.unlock();
   speed_scale_lock.unlock();
@@ -313,6 +316,7 @@ void RacingMPCNode::on_step_timer()
     RCLCPP_INFO(this->get_logger(), "Get initial solution with full dynamics.");
     mpc_full_->solve(sol_in_, sol_out, stats);
     last_x_ = sol_out["X_optm"];
+
     last_u_ = sol_out["U_optm"];
     last_du_ = sol_out["dU_optm"];
     if (config_->learning) {
@@ -334,6 +338,8 @@ void RacingMPCNode::on_step_timer()
 
   if (sol_out.count("X_optm")) {
     last_x_ = sol_out["X_optm"];
+    std::cout<<last_x_(Slice(XIndex::YAW + 3))<<std::endl;
+
     last_u_ = sol_out["U_optm"];
     last_du_ = sol_out["dU_optm"];
     telemetry_msg.solved = true;

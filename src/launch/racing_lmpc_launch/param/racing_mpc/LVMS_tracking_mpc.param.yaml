@@ -1,12 +1,12 @@
 /**:
   ros__parameters:
     racing_mpc:
-      max_cpu_time: .02
+      max_cpu_time: .085
       max_iter: 200
       tol: 1e-3
       n: 80
-      margin: 0.1
-      average_track_width: 0.085
+      margin: 0.5
+      average_track_width: 10.0
       verbose: true
       jit: true
 
@@ -24,14 +24,14 @@
         1e-4, 0.0,
         0.0, 10.0,
       ]
-      max_vel_ref_diff: 1.0 # max difference between reference velocity and actual velocity
+      max_vel_ref_diff: 4.0 # max difference between reference velocity and actual velocity
 
       x_max: [.inf, .inf, .inf, 100.0, 15.0, 2.0]
       x_min: [-.inf, -.inf, -.inf, 3.0, -15.0, -2.0]
       u_max: [5.0, 0.314159]
       u_min: [-10.0, -0.314159]
 
-      step_mode: "step"
+      step_mode: "continuous"
 
       # LMPC
       learning: false

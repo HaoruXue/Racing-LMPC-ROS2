@@ -25,9 +25,9 @@ from lmpc_utils.lmpc_launch_utils import get_share_file, get_sim_time_launch_arg
 def generate_launch_description():
     declare_use_sim_time_cmd, use_sim_time = get_sim_time_launch_arg()
     sim_config = get_share_file(
-        "racing_lmpc_launch", "param", "racing_simulator", "step_simulator.param.yaml")
+        "racing_lmpc_launch", "param", "racing_simulator", "continuous_simulator.param.yaml")
     dt_model_config = get_share_file(
-        "racing_lmpc_launch", "param", "LVMS", "LVMS_single_track.param.yaml")
+        "racing_lmpc_launch", "param", "iac_car", "iac_car_single_track.param.yaml")
     base_model_config = get_share_file(
         "racing_lmpc_launch", "param", "LVMS", "LVMS_base.param.yaml")
     mpc_config = get_share_file(
@@ -55,6 +55,8 @@ def generate_launch_description():
                         "modeling.use_frenet": False,
                         # "racing_simulator.x0": [-100.0, -5.0, 3.14, 15.0, 0.0, 0.0]
                         # "racing_simulator.x0": [50.0, 5.0, 3.14, 15.0, 0.0, 0.0]
+                        #"racing_simulator.x0": [-10.0, 2.0, 3.14, 15.0, 0.0, 0.0]
+
                         "racing_simulator.x0": [-1.0, 2.0, 3.8, 15.0, 0.0, 0.0]
                         # "racing_simulator.x0": [-350.0, -20.0, 3.14, 15.0, 0.0, 0.0]
                         # "racing_simulator.x0": [-67.9, 247.6, -2.61799, 15.0, 0.0, 0.0]
