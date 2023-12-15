@@ -44,11 +44,11 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   model_(vehicle_model::vehicle_model_factory::load_vehicle_model(
       utils::declare_parameter<std::string>(
         this, "racing_mpc_node.vehicle_model_name"), this)),
-  mpc_(std::make_shared<RacingMPC>(config_, model_, false)),
+  mpc_manager_(std::make_shared<RacingMPCManager>(config_, model_, false)),
   profiler_(std::make_unique<lmpc::utils::CycleProfiler<double>>(10)),
   profiler_iter_count_(std::make_unique<lmpc::utils::CycleProfiler<double>>(10)),
   speed_scale_(utils::declare_parameter<double>(this, "racing_mpc_node.velocity_profile_scale")),
-  f2g_(track_->frenet_to_global_function().map(mpc_->get_config().N))
+  f2g_(track_->frenet_to_global_function().map(mpc_full_->get_config().N))
 {
   // add a full dynamics MPC solver for the problem initialization
   auto full_config = std::make_shared<RacingMPCConfig>(*config_);
@@ -63,7 +63,7 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   vehicle_actuation_msg_ = std::make_shared<mpclab_msgs::msg::VehicleActuationMsg>();
 
   // initialize the mpc inputs
-  const auto N = static_cast<casadi_int>(mpc_->get_config().N);
+  const auto N = static_cast<casadi_int>(mpc_full_->get_config().N);
   sol_in_["T_ref"] = casadi::DM::zeros(1, N - 1) + dt_;
   sol_in_["total_length"] = track_->total_length();
 
@@ -187,7 +187,7 @@ void RacingMPCNode::on_step_timer()
   x_ic_base(XIndex::YAW) = current_frenet_pose.yaw;
 
   static size_t profile_step_count = 0;
-  const auto N = static_cast<casadi_int>(mpc_->get_config().N);
+  const auto N = static_cast<casadi_int>(mpc_full_->get_config().N);
 
   // prepare the mpc inputs
   const auto u_ic_base = casadi::DM {
@@ -211,9 +211,9 @@ void RacingMPCNode::on_step_timer()
 
   // if the mpc is not solved, pass the initial guess
   if (!mpc_full_->solved()) {
-    last_x_ = DM::zeros(mpc_->get_model().nx(), N);
-    last_u_ = DM::zeros(mpc_->get_model().nu(), N - 1);
-    last_du_ = DM::zeros(mpc_->get_model().nu(), N - 1);
+    last_x_ = DM::zeros(mpc_full_->get_model().nx(), N);
+    last_u_ = DM::zeros(mpc_full_->get_model().nu(), N - 1);
+    last_du_ = DM::zeros(mpc_full_->get_model().nu(), N - 1);
     if (config_->learning) {
       last_convex_combi_ = DM::zeros(config_->num_ss_pts);
     }
@@ -300,20 +300,19 @@ void RacingMPCNode::on_step_timer()
   sol_in_["vel_ref"] = vel_ref;
   sol_in_["bank_angle"] = bank_angle;
 
-  // solve the mpc
-  auto sol_out = casadi::DMDict{};
-  auto stats = casadi::Dict{};
-
   // solve the first time with full dynamics
   if (!mpc_full_->solved()) {
+    // solve the mpc
+    auto full_sol_out = casadi::DMDict{};
+    auto full_stats = casadi::Dict{};
     RCLCPP_INFO(this->get_logger(), "Get initial solution with full dynamics.");
-    mpc_full_->solve(sol_in_, sol_out, stats);
-    last_x_ = sol_out["X_optm"];
+    mpc_full_->solve(sol_in_, full_sol_out, full_stats);
+    last_x_ = full_sol_out["X_optm"];
 
-    last_u_ = sol_out["U_optm"];
-    last_du_ = sol_out["dU_optm"];
+    last_u_ = full_sol_out["U_optm"];
+    last_du_ = full_sol_out["dU_optm"];
     if (config_->learning) {
-      last_convex_combi_ = sol_out["convex_combi_optm"];
+      last_convex_combi_ = full_sol_out["convex_combi_optm"];
     }
     if (mpc_full_->solved()) {
       RCLCPP_INFO(this->get_logger(), "Solved the first time with full dynamics.");
@@ -326,13 +325,21 @@ void RacingMPCNode::on_step_timer()
   // const auto mpc_start = std::chrono::high_resolution_clock::now();
   if (!jitted) {
     RCLCPP_INFO(this->get_logger(), "Using the first solve to execute just-in-time compilation.");
+    mpc_manager_->initialize(sol_in_);
+    jitted = true;
+    RCLCPP_INFO(this->get_logger(), "JIT is done. Discarding the first solve...");
+    return;
   }
-  mpc_->solve(sol_in_, sol_out, stats);
+
+  auto solution = mpc_manager_->step(sol_in_);
+  auto & sol_out = solution.solution;
+  auto & stats = solution.stats;
 
   if (sol_out.count("X_optm")) {
     last_x_ = sol_out["X_optm"];
     last_u_ = sol_out["U_optm"];
     last_du_ = sol_out["dU_optm"];
+    last_solution_age_ = solution.solution_age;
     telemetry_msg.solved = true;
   } else {
     RCLCPP_ERROR_THROTTLE(
@@ -342,13 +349,6 @@ void RacingMPCNode::on_step_timer()
   }
   telemetry_msg.state = last_x_.get_elements();
   telemetry_msg.control = last_u_.get_elements();
-
-  if (!jitted) {
-    // on first solve, exit since JIT will take a long time
-    jitted = true;
-    RCLCPP_INFO(this->get_logger(), "JIT is done. Discarding the first solve...");
-    return;
-  }
 
   auto last_x_global = last_x_;
   last_x_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()) =
@@ -392,25 +392,34 @@ void RacingMPCNode::on_step_timer()
     diagnostics_pub_->publish(diagnostics_msg);
     profile_step_count = 0;
   }
-  // publish the actuation message
-  const auto last_u_base =
-    model_->to_base_control()(
-    casadi::DMDict{{"x", last_x_(Slice(), delay_step_)},
-      {"u", last_u_(Slice(), delay_step_)}}).at("u_out");
-  const auto u_vec = last_u_base.get_elements();
-  // std::cout << "x: " << last_x_(Slice(), 0) << std::endl;
-  // std::cout << "u: " << last_u_(Slice(), 0) << std::endl;
-  // std::cout << "xip1: "
-  //   << discrete_dynamics_(casadi::DMVector{last_x_(Slice(), 0), last_u_(Slice(), 0)})[0]
-  //   << std::endl << std::endl;
-  vehicle_actuation_msg_->header.stamp = now;
-  if (abs(u_vec[UIndex::FD]) > abs(u_vec[UIndex::FB])) {
-    vehicle_actuation_msg_->u_a = u_vec[UIndex::FD];
+
+  const auto total_delay = solution.solution_age + delay_step_;
+  if (total_delay >= N) {
+    RCLCPP_WARN_THROTTLE(
+      this->get_logger(), *this->get_clock(), 1000,
+      "MPC solution is too old. Delay: %d, Solution Age: %d. Skip publishing actuation.", delay_step_,
+      solution.solution_age);
   } else {
-    vehicle_actuation_msg_->u_a = u_vec[UIndex::FB];
+    // publish the actuation message
+    const auto last_u_base =
+      model_->to_base_control()(
+      casadi::DMDict{{"x", last_x_(Slice(), total_delay)},
+        {"u", last_u_(Slice(), total_delay)}}).at("u_out");
+    const auto u_vec = last_u_base.get_elements();
+    // std::cout << "x: " << last_x_(Slice(), 0) << std::endl;
+    // std::cout << "u: " << last_u_(Slice(), 0) << std::endl;
+    // std::cout << "xip1: "
+    //   << discrete_dynamics_(casadi::DMVector{last_x_(Slice(), 0), last_u_(Slice(), 0)})[0]
+    //   << std::endl << std::endl;
+    vehicle_actuation_msg_->header.stamp = now;
+    if (abs(u_vec[UIndex::FD]) > abs(u_vec[UIndex::FB])) {
+      vehicle_actuation_msg_->u_a = u_vec[UIndex::FD];
+    } else {
+      vehicle_actuation_msg_->u_a = u_vec[UIndex::FB];
+    }
+    vehicle_actuation_msg_->u_steer = u_vec[UIndex::STEER];
+    vehicle_actuation_pub_->publish(*vehicle_actuation_msg_);
   }
-  vehicle_actuation_msg_->u_steer = u_vec[UIndex::STEER];
-  vehicle_actuation_pub_->publish(*vehicle_actuation_msg_);
 
   // publish the visualization message
   auto mpc_vis_msg = nav_msgs::msg::Path();
@@ -548,7 +557,7 @@ void RacingMPCNode::change_trajectory(const int & traj_idx)
       state_msg_lock.unlock();
 
       // convert previous solution to new coordinate system
-      if (mpc_->solved()) {
+      if (mpc_full_->solved()) {
         for (casadi_int i = 0; i < static_cast<casadi_int>(config_->N); i++) {
           const auto xi = last_x_(casadi::Slice(), i).get_elements();
           const FrenetPose2D old_frenet_pose {{xi[XIndex::PX], xi[XIndex::PY]}, xi[XIndex::YAW]};
@@ -560,7 +569,7 @@ void RacingMPCNode::change_trajectory(const int & traj_idx)
       }
     }
     track_ = new_traj;
-    f2g_ = track_->frenet_to_global_function().map(mpc_->get_config().N);
+    f2g_ = track_->frenet_to_global_function().map(mpc_full_->get_config().N);
     traj_idx_ = traj_idx;
     vis_->change_trajectory(*track_);
     sol_in_["total_length"] = track_->total_length();

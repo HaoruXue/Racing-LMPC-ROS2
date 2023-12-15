@@ -38,6 +38,7 @@
 
 #include "racing_mpc/racing_mpc_config.hpp"
 #include "racing_mpc/racing_mpc.hpp"
+#include "racing_mpc/racing_mpc_manager.hpp"
 
 namespace lmpc
 {
@@ -62,7 +63,7 @@ protected:
   RacingTrajectory::SharedPtr track_ {};
   ROSTrajectoryVisualizer::UniquePtr vis_ {};
   BaseVehicleModel::SharedPtr model_ {};
-  RacingMPC::SharedPtr mpc_ {};
+  RacingMPCManager::SharedPtr mpc_manager_ {};
   RacingMPC::SharedPtr mpc_full_ {};
   lmpc::utils::CycleProfiler<double>::UniquePtr profiler_ {};
   lmpc::utils::CycleProfiler<double>::UniquePtr profiler_iter_count_ {};
@@ -77,6 +78,7 @@ protected:
   casadi::DM last_u_;
   casadi::DM last_du_;
   casadi::DM last_convex_combi_;
+  size_t last_solution_age_ = 0;
   casadi::DMDict sol_in_;
   casadi::Function f2g_;
   casadi::Function discrete_dynamics_ {};
