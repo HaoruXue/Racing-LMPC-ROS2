@@ -24,7 +24,7 @@
         1e-4, 0.0,
         0.0, 10.0,
       ]
-      max_vel_ref_diff: 4.0 # max difference between reference velocity and actual velocity
+      max_vel_ref_diff: 1.0 # max difference between reference velocity and actual velocity
 
       x_max: [.inf, .inf, .inf, 100.0, 15.0, 2.0]
       x_min: [-.inf, -.inf, -.inf, 3.0, -15.0, -2.0]
