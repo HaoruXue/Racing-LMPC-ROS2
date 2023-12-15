@@ -50,7 +50,6 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   speed_scale_(utils::declare_parameter<double>(this, "racing_mpc_node.velocity_profile_scale")),
   f2g_(track_->frenet_to_global_function().map(mpc_->get_config().N))
 {
-
   // add a full dynamics MPC solver for the problem initialization
   auto full_config = std::make_shared<RacingMPCConfig>(*config_);
   full_config->max_cpu_time = 10.0;
@@ -268,7 +267,7 @@ void RacingMPCNode::on_step_timer()
   const auto right_ref = track_->right_boundary_interpolation_function()(abscissa)[0];
   const auto curvature_ref = track_->curvature_interpolation_function()(abscissa)[0];
   auto vel_ref = track_->velocity_interpolation_function()(abscissa)[0];
-  //pull the bank angle from the interpolation fnctn
+  // pull the bank angle from the interpolation fnctn
   auto bank_angle = track_->bank_interpolation_function()(abscissa)[0];
 
 
@@ -294,7 +293,6 @@ void RacingMPCNode::on_step_timer()
     } else {
       vel_ref(i) = speed_limit_clipped;
     }
-
   }
   speed_limit_lock.unlock();
   speed_scale_lock.unlock();

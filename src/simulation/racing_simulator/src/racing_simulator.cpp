@@ -51,7 +51,6 @@ RacingSimulator::RacingSimulator(
   if (model_->get_base_config().modeling_config->use_frenet) {
     k = track_->curvature_interpolation_function()(x_sym(XIndex::PX))[0];
     bank = track_->bank_interpolation_function()(x_sym(XIndex::PX))[0];
-
   }
 
   auto xip1 = model_->discrete_dynamics()(

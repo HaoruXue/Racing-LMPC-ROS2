@@ -254,8 +254,8 @@ void SingleTrackPlanarModel::compile_dynamics()
   // const auto & Fz0_r = tyre_r.pacejka_fz0;  // magic formula Fz0 - rear
   // const auto & eps_r = tyre_r.pacejka_eps;  // extended magic formula epsilon - rear
 
-  // TODO: vsq should be decomposed in direction of race track
-  const auto N = m * GRAVITY * cos(bank) + (m * (v_sq) * (k)) * abs(sin(bank)); //normal force
+  // TODO(adith): vsq should be decomposed in direction of race track
+  const auto N = m * GRAVITY * cos(bank) - m * v_sq * k * sin(bank);  // normal force
   // longitudinal tyre force Fx (eq. 4a, 4b)
   // TODO(haoru): consider differential
   const auto Fx_f = 0.5 * kd_f * fd + 0.5 * kb_f * fb - 0.5 * fr * N * lr / l;
@@ -314,7 +314,7 @@ void SingleTrackPlanarModel::compile_dynamics()
 
   // dynamics (modified)
   // body frame acceleration vx_dot, vy_dot
-  // TODO: decomposed in direction of race track
+  // TODO(adith): decomposed in direction of race track
 
   const auto vx_dot = 1.0 / m *
     ((2 * Fx_rl) + (2 * Fx_fl) * cos(delta) - (2 * Fy_fl) * sin(delta) -
