@@ -86,11 +86,11 @@ protected:
   casadi::MX bound_left_;
   casadi::MX bound_right_;
   casadi::MX total_length_;
+  casadi::MX bank_angle_;
   casadi::MX curvatures_;
   casadi::MX vel_ref_;
   casadi::MX ss_;
   casadi::MX ss_costs_;  // J in LMPC paper
-  casadi::MX bank_angle_;
 
   // flag if the nlp has been solved at least once
   bool solved_;

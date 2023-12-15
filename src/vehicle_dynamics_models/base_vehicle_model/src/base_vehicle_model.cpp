@@ -179,25 +179,25 @@ double BaseVehicleModel::calc_brake(const double & fb) const
     return 0.0;
   }
   const auto & fb_config = *base_config_->front_brake_config.get();
-  const auto & rb_config = *base_config_->rear_brake_config.get();
+  // const auto & rb_config = *base_config_->rear_brake_config.get();
   const auto front_control_torque = fb_config.bias * fb *
     base_config_->front_tyre_config->radius * fb_config.bias;
-  const auto rear_control_torque = rb_config.bias * fb * base_config_->rear_tyre_config->radius *
-    rb_config.bias;
+  // const auto rear_control_torque = rb_config.bias * fb * base_config_->rear_tyre_config->radius *
+  //   rb_config.bias;
   const auto front_brake_lever =
     (fb_config.brake_pad_in_r + fb_config.brake_pad_out_r) /
     2.0;
-  const auto rear_brake_lever =
-    (rb_config.brake_pad_in_r + rb_config.brake_pad_out_r) /
-    2.0;
+  // const auto rear_brake_lever =
+  //   (rb_config.brake_pad_in_r + rb_config.brake_pad_out_r) /
+  //   2.0;
 
   // T = lever * friction_mu * pressure * pi * piston_radius^2 * num_pad
   const auto front_brake_kpa = -0.001 * front_control_torque /
     (front_brake_lever * fb_config.brake_pad_friction_coeff *
     fb_config.piston_area);
-  const auto rear_brake_kpa = -0.001 * rear_control_torque /
-    (rear_brake_lever * rb_config.brake_pad_friction_coeff *
-    rb_config.piston_area);
+  // const auto rear_brake_kpa = -0.001 * rear_control_torque /
+  //   (rear_brake_lever * rb_config.brake_pad_friction_coeff *
+  //   rb_config.piston_area);
 
   // return std::clamp(front_brake_kpa, 0.0, fb_config.max_brake) +
   //        std::clamp(rear_brake_kpa, 0.0, rb_config.max_brake);

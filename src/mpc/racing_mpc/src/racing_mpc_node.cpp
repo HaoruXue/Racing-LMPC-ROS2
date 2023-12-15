@@ -274,7 +274,7 @@ void RacingMPCNode::on_step_timer()
   // cap the velocity by the speed limit
   std::shared_lock<std::shared_mutex> speed_limit_lock(speed_limit_mutex_);
   std::shared_lock<std::shared_mutex> speed_scale_lock(speed_scale_mutex_);
-  for (int i = 0; i < config_->N; i++) {
+  for (casadi_int i = 0; i < static_cast<casadi_int>(config_->N); i++) {
     // clip the velocity reference within +- 20m/s of current speed
     const auto current_speed = static_cast<double>(last_x_(XIndex::VX, i));
     const auto ref_speed = static_cast<double>(vel_ref(i)) * speed_scale_;
@@ -457,7 +457,7 @@ void RacingMPCNode::on_step_timer()
   // publish the safe set visualization message
   if (sol_out.count("ss_x")) {
     const auto & ss_X = sol_out["ss_x"];
-    const auto & ss_J = sol_out["ss_j"];
+    // const auto & ss_J = sol_out["ss_j"];
     auto ss_vis_msg = visualization_msgs::msg::MarkerArray();
     auto & marker = ss_vis_msg.markers.emplace_back();
     marker.header.stamp = now;
@@ -555,7 +555,7 @@ void RacingMPCNode::change_trajectory(const int & traj_idx)
 
       // convert previous solution to new coordinate system
       if (mpc_->solved()) {
-        for (int i = 0; i < config_->N; i++) {
+        for (casadi_int i = 0; i < static_cast<casadi_int>(config_->N); i++) {
           const auto xi = last_x_(casadi::Slice(), i).get_elements();
           const FrenetPose2D old_frenet_pose {{xi[XIndex::PX], xi[XIndex::PY]}, xi[XIndex::YAW]};
           const FrenetPose2D new_frenet_pose = convert_frame(old_frenet_pose);
