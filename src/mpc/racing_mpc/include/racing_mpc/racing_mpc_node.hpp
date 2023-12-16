@@ -72,6 +72,8 @@ protected:
   std::shared_mutex traj_mutex_;
   std::shared_mutex speed_limit_mutex_;
   std::shared_mutex speed_scale_mutex_;
+  std::shared_mutex telemetry_msg_mutex_;
+  std::shared_mutex actuation_msg_mutex_;
 
   casadi::DM last_x_;
   casadi::DM last_u_;
@@ -80,9 +82,11 @@ protected:
   casadi::DMDict sol_in_;
   casadi::Function f2g_;
   casadi::Function discrete_dynamics_ {};
+  casadi::Function to_base_control_ {};
 
   mpclab_msgs::msg::VehicleStateMsg::SharedPtr vehicle_state_msg_ {};
   mpclab_msgs::msg::VehicleActuationMsg::SharedPtr vehicle_actuation_msg_ {};
+  lmpc_msgs::msg::MPCTelemetry::SharedPtr telemetry_msg_ {};
 
   // publishers (to world/simulator)
   rclcpp::Publisher<mpclab_msgs::msg::VehicleActuationMsg>::SharedPtr vehicle_actuation_pub_ {};
@@ -99,12 +103,14 @@ protected:
   rclcpp::Subscription<lmpc_msgs::msg::TrajectoryCommand>::SharedPtr trajectory_command_sub_ {};
 
   // timers
-  // republish vehicle state (TODO(haoru): to be replaced by a service)
   rclcpp::TimerBase::SharedPtr step_timer_;
+  rclcpp::TimerBase::SharedPtr publish_timer_;
 
   // callback groups
   rclcpp::CallbackGroup::SharedPtr state_callback_group_;
   rclcpp::CallbackGroup::SharedPtr trajectory_command_callback_group_;
+  rclcpp::CallbackGroup::SharedPtr step_timer_callback_group_;
+  rclcpp::CallbackGroup::SharedPtr publish_timer_callback_group_;
 
   // parameter callback handle
   OnSetParametersCallbackHandle::SharedPtr callback_handle_;
@@ -113,6 +119,7 @@ protected:
   void on_new_state(const mpclab_msgs::msg::VehicleStateMsg::SharedPtr msg);
   void on_new_trajectory_command(const lmpc_msgs::msg::TrajectoryCommand::SharedPtr msg);
   void on_step_timer();
+  void on_publish_timer();
   rcl_interfaces::msg::SetParametersResult on_set_parameters(
     std::vector<rclcpp::Parameter> const & parameters);
 

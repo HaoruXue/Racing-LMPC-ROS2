@@ -32,8 +32,9 @@ namespace vehicle_model
 namespace vehicle_model_factory
 {
 base_vehicle_model::BaseVehicleModel::SharedPtr load_vehicle_model(
-  const std::string model_name,
+  const std::string & model_name,
   rclcpp::Node * node);
+base_vehicle_model::BaseVehicleModel::SharedPtr copy_vehicle_model(const std::string & model_name, base_vehicle_model::BaseVehicleModel::SharedPtr model);
 }  // namespace vehicle_model_factory
 }  // namespace vehicle_model
 }  // namespace lmpc

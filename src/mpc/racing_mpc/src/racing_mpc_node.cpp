@@ -48,7 +48,8 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   profiler_(std::make_unique<lmpc::utils::CycleProfiler<double>>(10)),
   profiler_iter_count_(std::make_unique<lmpc::utils::CycleProfiler<double>>(10)),
   speed_scale_(utils::declare_parameter<double>(this, "racing_mpc_node.velocity_profile_scale")),
-  f2g_(track_->frenet_to_global_function().map(mpc_->get_config().N))
+  f2g_(track_->frenet_to_global_function().map(mpc_->get_config().N)),
+  to_base_control_(model_->to_base_control().map(mpc_->get_config().N - 1))
 {
   // add a full dynamics MPC solver for the problem initialization
   auto full_config = std::make_shared<RacingMPCConfig>(*config_);
@@ -61,6 +62,9 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
 
   // initialize the actuation message
   vehicle_actuation_msg_ = std::make_shared<mpclab_msgs::msg::VehicleActuationMsg>();
+
+  // initialize the mpc telemetry message
+  telemetry_msg_ = std::make_shared<lmpc_msgs::msg::MPCTelemetry>();
 
   // initialize the mpc inputs
   const auto N = static_cast<casadi_int>(mpc_->get_config().N);
@@ -115,8 +119,15 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
 
   if (config_->step_mode == RacingMPCStepMode::CONTINUOUS) {
     // initialize the timers
+    step_timer_callback_group_ = this->create_callback_group(
+      rclcpp::CallbackGroupType::MutuallyExclusive);
     step_timer_ = this->create_wall_timer(
-      std::chrono::duration<double>(dt_), std::bind(&RacingMPCNode::on_step_timer, this));
+      std::chrono::duration<double>(dt_), std::bind(&RacingMPCNode::on_step_timer, this), step_timer_callback_group_);
+    // initialize the actuation time at 1/10 of dt
+    publish_timer_callback_group_ = this->create_callback_group(
+      rclcpp::CallbackGroupType::MutuallyExclusive);
+    publish_timer_ = this->create_wall_timer(
+      std::chrono::duration<double>(dt_ / 10.0), std::bind(&RacingMPCNode::on_publish_timer, this), publish_timer_callback_group_);
   }
 }
 
@@ -127,6 +138,7 @@ void RacingMPCNode::on_new_state(const mpclab_msgs::msg::VehicleStateMsg::Shared
   lock.unlock();
   if (config_->step_mode == RacingMPCStepMode::STEP) {
     on_step_timer();
+    on_publish_timer();
   }
 }
 
@@ -190,11 +202,13 @@ void RacingMPCNode::on_step_timer()
   const auto N = static_cast<casadi_int>(mpc_->get_config().N);
 
   // prepare the mpc inputs
+  std::shared_lock<std::shared_mutex> actuation_msg_lock(actuation_msg_mutex_);
   const auto u_ic_base = casadi::DM {
     vehicle_actuation_msg_->u_a > 0.0 ? vehicle_actuation_msg_->u_a : 0.0,
     vehicle_actuation_msg_->u_a < 0.0 ? vehicle_actuation_msg_->u_a : 0.0,
     vehicle_actuation_msg_->u_steer
   };
+  actuation_msg_lock.unlock();
   const auto x_ic =
     model_->from_base_state()(casadi::DMDict{{"x", x_ic_base}, {"u", u_ic_base}}).at("x_out");
   const auto u_ic =
@@ -341,7 +355,7 @@ void RacingMPCNode::on_step_timer()
     telemetry_msg.solved = false;
   }
   telemetry_msg.state = last_x_.get_elements();
-  telemetry_msg.control = last_u_.get_elements();
+  telemetry_msg.control = to_base_control_(casadi::DMDict{{"x", last_x_(Slice(), Slice(0, static_cast<casadi_int>(mpc_->get_config().N - 1)))}, {"u", last_u_}}).at("u_out").get_elements();
 
   if (!jitted) {
     // on first solve, exit since JIT will take a long time
@@ -392,25 +406,6 @@ void RacingMPCNode::on_step_timer()
     diagnostics_pub_->publish(diagnostics_msg);
     profile_step_count = 0;
   }
-  // publish the actuation message
-  const auto last_u_base =
-    model_->to_base_control()(
-    casadi::DMDict{{"x", last_x_(Slice(), delay_step_)},
-      {"u", last_u_(Slice(), delay_step_)}}).at("u_out");
-  const auto u_vec = last_u_base.get_elements();
-  // std::cout << "x: " << last_x_(Slice(), 0) << std::endl;
-  // std::cout << "u: " << last_u_(Slice(), 0) << std::endl;
-  // std::cout << "xip1: "
-  //   << discrete_dynamics_(casadi::DMVector{last_x_(Slice(), 0), last_u_(Slice(), 0)})[0]
-  //   << std::endl << std::endl;
-  vehicle_actuation_msg_->header.stamp = now;
-  if (abs(u_vec[UIndex::FD]) > abs(u_vec[UIndex::FB])) {
-    vehicle_actuation_msg_->u_a = u_vec[UIndex::FD];
-  } else {
-    vehicle_actuation_msg_->u_a = u_vec[UIndex::FB];
-  }
-  vehicle_actuation_msg_->u_steer = u_vec[UIndex::STEER];
-  vehicle_actuation_pub_->publish(*vehicle_actuation_msg_);
 
   // publish the visualization message
   auto mpc_vis_msg = nav_msgs::msg::Path();
@@ -482,8 +477,56 @@ void RacingMPCNode::on_step_timer()
   }
 
   // publish the telemetry message
-  telemetry_msg.header.stamp = now;
-  mpc_telemetry_pub_->publish(telemetry_msg);
+  std::unique_lock<std::shared_mutex> telemetry_msg_lock(telemetry_msg_mutex_);
+  *telemetry_msg_ = telemetry_msg;
+  telemetry_msg_->header.stamp = now;
+  mpc_telemetry_pub_->publish(*telemetry_msg_);
+  telemetry_msg_lock.unlock();
+}
+
+void RacingMPCNode::on_publish_timer()
+{
+  using casadi::Slice;
+  using casadi::DM;
+
+  // if the MPC has not been solved, return
+  std::shared_lock<std::shared_mutex> telemetry_msg_lock(telemetry_msg_mutex_);
+  const auto t0 = rclcpp::Time(telemetry_msg_->header.stamp).seconds();
+  if (t0 <= 0.0) {
+    return;
+  }
+
+  // from the mpc interval and current time, compute the index of control to be published
+  const auto now = this->now();
+  const auto t = now.seconds();
+  const auto N = static_cast<casadi_int>(mpc_->get_config().N);
+  const auto k = static_cast<casadi_int>(std::floor((t - t0) / dt_)) + delay_step_;
+
+  if (k < 0 || k >= N - 1) {
+    RCLCPP_ERROR_THROTTLE(
+      this->get_logger(), *this->get_clock(), 1000,
+      "Cannot publish actuation message. No enough solutions in the buffer. k = %lld", k);
+    return;
+  }
+
+  // publish the actuation message
+  const size_t u_start = static_cast<size_t>(k * model_->BaseVehicleModel::nu());
+  const size_t u_end = static_cast<size_t>((k + 1) * model_->BaseVehicleModel::nu());
+  const auto u_vec = std::vector<double>(
+    telemetry_msg_->control.begin() + u_start,
+    telemetry_msg_->control.begin() + u_end);
+  telemetry_msg_lock.unlock();
+
+  std::unique_lock<std::shared_mutex> actuation_msg_lock(actuation_msg_mutex_);
+  vehicle_actuation_msg_->header.stamp = now;
+  if (abs(u_vec[UIndex::FD]) > abs(u_vec[UIndex::FB])) {
+    vehicle_actuation_msg_->u_a = u_vec[UIndex::FD];
+  } else {
+    vehicle_actuation_msg_->u_a = u_vec[UIndex::FB];
+  }
+  vehicle_actuation_msg_->u_steer = u_vec[UIndex::STEER];
+  actuation_msg_lock.unlock();
+  vehicle_actuation_pub_->publish(*vehicle_actuation_msg_);
 }
 
 rcl_interfaces::msg::SetParametersResult RacingMPCNode::on_set_parameters(
