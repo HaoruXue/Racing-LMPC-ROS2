@@ -19,7 +19,8 @@ jobs:
           bash -c 'apt update && \
           apt install -y gcc g++ gfortran git cmake liblapack-dev pkg-config --install-recommends && \
           apt install -y libopencl-clang-dev clang lldb lld llvm libclang-dev llvm-dev && \
-          apt install -y --no-install-recommends coinor-libipopt-dev'
+          apt install -y --no-install-recommends coinor-libipopt-dev && \
+          apt install -y ros-$ROS_DISTRO-osqp-vendor'
       - name: Cache CasAdi
         id: cache-casadi
         uses: actions/cache@v2
