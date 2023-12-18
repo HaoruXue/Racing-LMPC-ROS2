@@ -33,7 +33,8 @@ jobs:
       - name: Build Casadi
         if: steps.cache-casadi.outputs.cache-hit != 'true'
         run: |
-          bash -c 'git clone https://github.com/casadi/casadi.git -b 3.6.4 casadi && \
+          bash -c 'source /opt/ros/$ROS_DISTRO/setup.bash && \
+          git clone https://github.com/casadi/casadi.git -b 3.6.4 casadi && \
           cd casadi && mkdir build && cd build && \
           cmake -DWITH_IPOPT=ON -DWITH_SLICOT=ON -DWITH_LAPACK=ON -DWITH_QPOASES=ON -DWITH_OSQP=ON -DWITH_CLANG=ON .. && \
           make && \
@@ -42,7 +43,8 @@ jobs:
       - name: Restore CasAdi
         if: steps.cache-casadi.outputs.cache-hit == 'true'
         run: |
-          bash -c 'cd casadi/build && make install && \
+          bash -c 'source /opt/ros/$ROS_DISTRO/setup.bash && \
+          cd casadi/build && make install && \
           echo export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib" >> /etc/bash.bashrc'
       - name: Install ROS Dependencies
         run: |
