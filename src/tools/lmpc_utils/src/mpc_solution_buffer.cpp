@@ -64,5 +64,10 @@ MPCSolution MPCSolutionBuffer::get_mpc_solution(const size_t & timestamp)
   }
   return solution;
 }
+
+bool MPCSolutionBuffer::is_initialized() const
+{
+  return initialized_;
+}
 }  // namespace utils
 }  // namespace lmpc

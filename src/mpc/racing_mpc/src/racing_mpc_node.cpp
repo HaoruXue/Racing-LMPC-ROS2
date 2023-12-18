@@ -122,12 +122,16 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
     step_timer_callback_group_ = this->create_callback_group(
       rclcpp::CallbackGroupType::MutuallyExclusive);
     step_timer_ = this->create_wall_timer(
-      std::chrono::duration<double>(dt_), std::bind(&RacingMPCNode::on_step_timer, this), step_timer_callback_group_);
+      std::chrono::duration<double>(dt_), std::bind(
+        &RacingMPCNode::on_step_timer,
+        this), step_timer_callback_group_);
     // initialize the actuation time at 1/10 of dt
     publish_timer_callback_group_ = this->create_callback_group(
       rclcpp::CallbackGroupType::MutuallyExclusive);
     publish_timer_ = this->create_wall_timer(
-      std::chrono::duration<double>(dt_ / 10.0), std::bind(&RacingMPCNode::on_publish_timer, this), publish_timer_callback_group_);
+      std::chrono::duration<double>(dt_ / 10.0), std::bind(
+        &RacingMPCNode::on_publish_timer,
+        this), publish_timer_callback_group_);
   }
 }
 
@@ -355,7 +359,14 @@ void RacingMPCNode::on_step_timer()
     telemetry_msg.solved = false;
   }
   telemetry_msg.state = last_x_.get_elements();
-  telemetry_msg.control = to_base_control_(casadi::DMDict{{"x", last_x_(Slice(), Slice(0, static_cast<casadi_int>(mpc_->get_config().N - 1)))}, {"u", last_u_}}).at("u_out").get_elements();
+  telemetry_msg.control =
+    to_base_control_(
+    casadi::DMDict{{"x",
+      last_x_(
+        Slice(), Slice(
+          0,
+          static_cast<casadi_int>(mpc_->get_config().N - 1)))},
+      {"u", last_u_}}).at("u_out").get_elements();
 
   if (!jitted) {
     // on first solve, exit since JIT will take a long time

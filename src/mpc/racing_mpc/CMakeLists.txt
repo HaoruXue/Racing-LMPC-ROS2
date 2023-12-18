@@ -35,6 +35,7 @@ set(${PROJECT_NAME}_SRC
   src/racing_mpc.cpp
   src/ros_param_loader.cpp
   src/racing_mpc_node.cpp
+  src/multi_mpc_manager.cpp
 )
 
 set(${PROJECT_NAME}_HEADER
@@ -42,6 +43,7 @@ set(${PROJECT_NAME}_HEADER
   include/racing_mpc/racing_mpc_config.hpp
   include/racing_mpc/ros_param_loader.hpp
   include/racing_mpc/racing_mpc_node.hpp
+  include/racing_mpc/multi_mpc_manager.hpp
 )
 
 ament_auto_add_library(${PROJECT_NAME} SHARED

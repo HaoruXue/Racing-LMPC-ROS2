@@ -75,6 +75,8 @@ public:
  */
   MPCSolution get_mpc_solution(const size_t & timestamp);
 
+  bool is_initialized() const;
+
 protected:
   MPCSolution solution_;
   std::shared_mutex mutex_;
