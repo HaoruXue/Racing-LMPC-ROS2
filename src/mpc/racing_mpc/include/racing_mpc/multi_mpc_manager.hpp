@@ -39,7 +39,7 @@ public:
   typedef std::unique_ptr<MultiMPCInterface> UniquePtr;
 
   virtual ~MultiMPCInterface() = default;
-  virtual void solve(const casadi::DMDict in, casadi::DMDict & out, casadi::Dict & stats) = 0;
+  virtual void solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::Dict & stats) = 0;
   virtual bool is_solve_success(casadi::DMDict & out, const casadi::Dict & stats) = 0;
   virtual casadi::DM get_x(casadi::DMDict & out) = 0;
   virtual casadi::DM get_u(casadi::DMDict & out) = 0;
