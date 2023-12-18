@@ -18,7 +18,7 @@ jobs:
         run: |
           bash -c 'apt update && \
           apt install -y gcc g++ gfortran git cmake liblapack-dev pkg-config --install-recommends && \
-          apt install -y clang lldb lld llvm libclang-dev llvm-dev && \
+          apt install -y libopencl-clang-dev clang lldb lld llvm libclang-dev llvm-dev && \
           apt install -y --no-install-recommends coinor-libipopt-dev && \
           git clone https://github.com/casadi/casadi.git -b main casadi && \
           cd casadi && mkdir build && cd build && \
