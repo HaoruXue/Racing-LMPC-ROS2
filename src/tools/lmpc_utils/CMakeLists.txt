@@ -37,6 +37,7 @@ set(${PROJECT_NAME}_SRC
   src/primitives.cpp
   src/utils.cpp
   src/pid_controller.cpp
+  src/mpc_solution_buffer.cpp
 )
 
 set(${PROJECT_NAME}_HEADER
@@ -48,6 +49,7 @@ set(${PROJECT_NAME}_HEADER
   include/lmpc_utils/casadi_primitives.hpp
   include/lmpc_utils/cycle_profiler.hpp
   include/lmpc_utils/pid_controller.hpp
+  include/lmpc_utils/mpc_solution_buffer.hpp
 )
 
 ament_auto_add_library(${PROJECT_NAME} SHARED
