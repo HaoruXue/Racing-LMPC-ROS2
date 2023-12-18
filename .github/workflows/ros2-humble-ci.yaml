@@ -16,24 +16,24 @@ jobs:
         uses: actions/checkout@v2
       - name: Build Casadi
         run: |
-          bash -c 'apt update; \
-          apt install -y gcc g++ gfortran git cmake liblapack-dev pkg-config --install-recommends; \
-          apt install -y clang lldb lld llvm libclang-dev llvm-dev; \
-          apt install -y --no-install-recommends coinor-libipopt-dev; \
-          git clone https://github.com/casadi/casadi.git -b main casadi; \
-          cd casadi; mkdir build; cd build; \
-          cmake -DWITH_IPOPT=ON -DWITH_SLICOT=ON -DWITH_LAPACK=ON -DWITH_QPOASES=ON -DWITH_OPENCL=ON -DWITH_OSQP=ON -DWITH_CLANG=ON ..; \
-          make; \
-          make install; \
+          bash -c 'apt update && \
+          apt install -y gcc g++ gfortran git cmake liblapack-dev pkg-config --install-recommends && \
+          apt install -y clang lldb lld llvm libclang-dev llvm-dev && \
+          apt install -y --no-install-recommends coinor-libipopt-dev && \
+          git clone https://github.com/casadi/casadi.git -b main casadi && \
+          cd casadi && mkdir build && cd build && \
+          cmake -DWITH_IPOPT=ON -DWITH_SLICOT=ON -DWITH_LAPACK=ON -DWITH_QPOASES=ON -DWITH_OPENCL=ON -DWITH_OSQP=ON -DWITH_CLANG=ON .. && \
+          make && \
+          make install && \
           echo export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib" >> /etc/bash.bashrc'
       - name: Install ROS Dependencies
         run: |
-          bash -c 'source /opt/ros/$ROS_DISTRO/setup.bash; \
-          apt-get update && rosdep update; \
+          bash -c 'source /opt/ros/$ROS_DISTRO/setup.bash && \
+          apt-get update && rosdep update && \
           rosdep install --from-paths . --ignore-src -y'
       - name: Build Workspace
         run: |
-          bash -c 'source /opt/ros/$ROS_DISTRO/setup.bash; \
+          bash -c 'source /opt/ros/$ROS_DISTRO/setup.bash && \
           colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release --packages-up-to racing_lmpc_launch --event-handlers console_cohesion+'
       # - name: Run Tests
       #   run: |
