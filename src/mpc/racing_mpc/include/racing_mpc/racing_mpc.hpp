@@ -51,9 +51,9 @@ public:
   const RacingMPCConfig & get_config() const;
 
   void solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::Dict & stats) override;
-  bool is_solve_success(casadi::DMDict & out, const casadi::Dict & stats) override;
-  casadi::DM get_x(casadi::DMDict & out) override;
-  casadi::DM get_u(casadi::DMDict & out) override;
+  bool is_solve_success(const casadi::DMDict & out, const casadi::Dict & stats) const override;
+  casadi::DM get_x(const casadi::DMDict & out) const override;
+  casadi::DM get_u(const casadi::DMDict & out) const override;
 
   void create_warm_start(const casadi::DMDict & in, casadi::DMDict & out);
 

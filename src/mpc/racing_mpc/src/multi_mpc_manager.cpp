@@ -36,7 +36,37 @@ MultiMPCManager::MultiMPCManager(const MultiMPCManagerConfig & config)
 {
 }
 
-void MultiMPCManager::solve(
+MultiMPCSolution MultiMPCManager::initialize(const casadi::DMDict & in, const size_t & timestamp)
+{
+  auto solve_async = [&](const size_t & mpc_idx) {
+      MultiMPCSolution solution;
+      mpcs_[mpc_idx]->solve(in, solution.solution, solution.stats);
+      solution.timestamp = timestamp;
+      solution.mpc_name = "MPC " + std::to_string(mpc_idx);
+      return solution;
+    };
+
+  // solve all MPCs asynchronously
+  for (size_t i = 0; i < mpcs_.size(); ++i) {
+    mpc_futures_[i] = std::async(std::launch::async, solve_async, i);
+  }
+
+  // wait for all MPCs to finish
+  for (size_t i = 0; i < mpcs_.size(); ++i) {
+    mpc_futures_[i].wait();
+  }
+
+  // put current MPC solution into the buffer
+  const auto solution = mpc_futures_[current_mpc_idx_].get();
+  if (mpcs_[current_mpc_idx_]->is_solve_success(solution.solution, solution.stats)) {
+    const auto x = mpcs_[current_mpc_idx_]->get_x(solution.solution);
+    const auto u = mpcs_[current_mpc_idx_]->get_u(solution.solution);
+    buffer_.set_mpc_solution(x, u, timestamp);
+  }
+  return solution;
+}
+
+MPCSolveScheduleResult MultiMPCManager::solve(
   const casadi::DMDict & in, const size_t & timestamp,
   SolutionCallback callback)
 {
@@ -44,7 +74,7 @@ void MultiMPCManager::solve(
     mpc_cycle_count_[current_mpc_idx_] += 1;
     // if the number of cycles is not enough, we don't start another MPC
     if (mpc_cycle_count_[current_mpc_idx_] < num_cycle_to_switch_) {
-      return;
+      return MPCSolveScheduleResult::NOT_SCHEDULED_PRIMARY_BUSY;
     }
     // if the current MPC is blocked for too long, we switch to the next one
     for (size_t i = 0; i < mpc_cycle_count_.size(); ++i) {
@@ -56,8 +86,9 @@ void MultiMPCManager::solve(
         mpc_cycle_count_[current_mpc_idx_] = 0;
         goto new_solve;
       }
-      return;       // this is only reached when no MPC is ready
     }
+    // this is only reached when no MPC is ready
+    return MPCSolveScheduleResult::NOT_SCHEDULED_NO_MPC_READY;
   }
 new_solve: mpc_futures_[current_mpc_idx_] = std::async(
     std::launch::async,
@@ -67,6 +98,7 @@ new_solve: mpc_futures_[current_mpc_idx_] = std::async(
     in,
     timestamp,
     callback);
+  return MPCSolveScheduleResult::SCHEDULED;
 }
 
 lmpc::utils::MPCSolution MultiMPCManager::get_solution(const size_t & timestamp)

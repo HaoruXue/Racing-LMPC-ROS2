@@ -377,18 +377,18 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
   }
 }
 
-bool RacingMPC::is_solve_success(casadi::DMDict & out, const casadi::Dict & stats)
+bool RacingMPC::is_solve_success(const casadi::DMDict & out, const casadi::Dict & stats) const
 {
   (void) stats;
   return out.count("X_optm");
 }
 
-casadi::DM RacingMPC::get_x(casadi::DMDict & out)
+casadi::DM RacingMPC::get_x(const casadi::DMDict & out) const
 {
   return out.at("X_optm");
 }
 
-casadi::DM RacingMPC::get_u(casadi::DMDict & out)
+casadi::DM RacingMPC::get_u(const casadi::DMDict & out) const
 {
   return out.at("U_optm");
 }

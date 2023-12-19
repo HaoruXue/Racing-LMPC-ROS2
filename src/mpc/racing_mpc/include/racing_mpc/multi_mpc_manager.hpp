@@ -40,9 +40,9 @@ public:
 
   virtual ~MultiMPCInterface() = default;
   virtual void solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::Dict & stats) = 0;
-  virtual bool is_solve_success(casadi::DMDict & out, const casadi::Dict & stats) = 0;
-  virtual casadi::DM get_x(casadi::DMDict & out) = 0;
-  virtual casadi::DM get_u(casadi::DMDict & out) = 0;
+  virtual bool is_solve_success(const casadi::DMDict & out, const casadi::Dict & stats) const = 0;
+  virtual casadi::DM get_x(const casadi::DMDict & out) const = 0;
+  virtual casadi::DM get_u(const casadi::DMDict & out) const = 0;
 };
 
 struct MultiMPCManagerConfig
@@ -65,6 +65,13 @@ struct MultiMPCSolution
   std::string mpc_name;
 };
 
+enum class MPCSolveScheduleResult : uint8_t
+{
+  SCHEDULED,
+  NOT_SCHEDULED_PRIMARY_BUSY,
+  NOT_SCHEDULED_NO_MPC_READY
+};
+
 class MultiMPCManager
 {
 public:
@@ -74,8 +81,57 @@ public:
 
   explicit MultiMPCManager(const MultiMPCManagerConfig & config);
 
-  void solve(const casadi::DMDict & in, const size_t & timestamp, SolutionCallback callback);
+  /**
+   * @brief Performs a solve for every MPC in the manager.
+   * This can initialize some solver behavior such as JIT compilation.
+   * This call is blocking untill all MPCs finish solving.
+   * It also initializes the solution buffer.
+   * The solution of the primary MPC is returned.
+   *
+   * @param in solver input
+   * @param timestamp timestamp of the solver input
+   * @return MultiMPCSolution solution of the primary MPC
+   */
+  MultiMPCSolution initialize(const casadi::DMDict & in, const size_t & timestamp);
+
+  /**
+   * @brief Schedule a solve for the primary MPC.
+   * If the primary MPC is not ready for up to time defined in the config,
+   * it will schedule the solve on the next MPC.
+   * If the primary MPC is not ready but the time has not reached,
+   * the solve will not be scheduled.
+   * If no MPC is ready, the solve will not be scheduled.
+   * This call is non-blocking.
+   * When a solver finishes solving, the callback function will be called.
+   * The solution buffer will be updated only if the solver is still the primary MPC
+   * after the solve.
+   *
+   * @param in solver input
+   * @param timestamp timestamp of the solver input
+   * @param callback callback function to be called when the primary MPC finishes solving
+   *
+   * @return SCHEDULED if the solve is scheduled
+   * @return NOT_SCHEDULED_PRIMARY_BUSY if the primary MPC is still solving but within the time limit
+   * @return NOT_SCHEDULED_NO_MPC_READY if no MPC is ready
+   */
+  MPCSolveScheduleResult solve(
+    const casadi::DMDict & in, const size_t & timestamp,
+    SolutionCallback callback);
+
+  /**
+   * @brief Get the solution from the solution buffer.
+   *
+   * @param timestamp timestamp of the solution
+   * @return lmpc::utils::MPCSolution solution
+   */
   lmpc::utils::MPCSolution get_solution(const size_t & timestamp);
+
+  /**
+   * @brief Check if the solution buffer is initialized.
+   *
+   * @return true if the solution buffer is initialized
+   * @return false if the solution buffer is not initialized
+   */
   bool is_solution_initialized() const;
 
 protected:

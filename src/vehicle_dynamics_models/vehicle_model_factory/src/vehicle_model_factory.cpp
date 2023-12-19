@@ -48,22 +48,40 @@ base_vehicle_model::BaseVehicleModel::SharedPtr load_vehicle_model(
   }
 }
 
-base_vehicle_model::BaseVehicleModel::SharedPtr copy_vehicle_model(const std::string & model_name, base_vehicle_model::BaseVehicleModel::SharedPtr model)
+base_vehicle_model::BaseVehicleModel::SharedPtr copy_vehicle_model(
+  const std::string & model_name,
+  base_vehicle_model::BaseVehicleModel::SharedPtr model)
 {
   const auto & base_config = model->get_base_config();
-  const auto shared_base_config = std::make_shared<base_vehicle_model::BaseVehicleModelConfig>(base_config);
+  const auto shared_base_config = std::make_shared<base_vehicle_model::BaseVehicleModelConfig>(
+    base_config);
   if (model_name == "kinematic_bicycle_model") {
-    const auto & config = dynamic_cast<const kinematic_bicycle_model::KinematicBicycleModel *>(model.get())->get_config();
-    const auto shared_config = std::make_shared<kinematic_bicycle_model::KinematicBicycleModelConfig>(config);
-    return std::make_shared<kinematic_bicycle_model::KinematicBicycleModel>(shared_base_config, shared_config);
+    const auto & config =
+      dynamic_cast<const kinematic_bicycle_model::KinematicBicycleModel *>(model.get())->
+      get_config();
+    const auto shared_config =
+      std::make_shared<kinematic_bicycle_model::KinematicBicycleModelConfig>(config);
+    return std::make_shared<kinematic_bicycle_model::KinematicBicycleModel>(
+      shared_base_config,
+      shared_config);
   } else if (model_name == "single_track_planar_model") {
-    const auto & config = dynamic_cast<const single_track_planar_model::SingleTrackPlanarModel *>(model.get())->get_config();
-    const auto shared_config = std::make_shared<single_track_planar_model::SingleTrackPlanarModelConfig>(config);
-    return std::make_shared<single_track_planar_model::SingleTrackPlanarModel>(shared_base_config, shared_config);
+    const auto & config =
+      dynamic_cast<const single_track_planar_model::SingleTrackPlanarModel *>(model.get())->
+      get_config();
+    const auto shared_config =
+      std::make_shared<single_track_planar_model::SingleTrackPlanarModelConfig>(config);
+    return std::make_shared<single_track_planar_model::SingleTrackPlanarModel>(
+      shared_base_config,
+      shared_config);
   } else if (model_name == "double_track_planar_model") {
-    const auto & config = dynamic_cast<const double_track_planar_model::DoubleTrackPlanarModel *>(model.get())->get_config();
-    const auto shared_config = std::make_shared<double_track_planar_model::DoubleTrackPlanarModelConfig>(config);
-    return std::make_shared<double_track_planar_model::DoubleTrackPlanarModel>(shared_base_config, shared_config);
+    const auto & config =
+      dynamic_cast<const double_track_planar_model::DoubleTrackPlanarModel *>(model.get())->
+      get_config();
+    const auto shared_config =
+      std::make_shared<double_track_planar_model::DoubleTrackPlanarModelConfig>(config);
+    return std::make_shared<double_track_planar_model::DoubleTrackPlanarModel>(
+      shared_base_config,
+      shared_config);
   } else {
     throw std::runtime_error("Vehicle model " + model_name + " cannot be found.");
   }
