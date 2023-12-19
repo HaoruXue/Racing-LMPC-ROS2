@@ -50,19 +50,9 @@ struct MultiMPCManagerConfig
   typedef std::shared_ptr<MultiMPCManagerConfig> SharedPtr;
   typedef std::unique_ptr<MultiMPCManagerConfig> UniquePtr;
 
-  size_t num_cycle_to_switch = 0;    // number of cycles to wait before switching to the next MPC
+  size_t num_cycle_to_switch;    // number of cycles to wait before switching to the next MPC
+  size_t max_extrapolate_horizon;  // maximum number of cycles to extrapolate the solution
   std::vector<MultiMPCInterface::SharedPtr> mpcs;
-};
-
-struct MultiMPCSolution
-{
-  typedef std::shared_ptr<MultiMPCSolution> SharedPtr;
-  typedef std::unique_ptr<MultiMPCSolution> UniquePtr;
-
-  casadi::DMDict solution;
-  casadi::Dict stats;
-  size_t timestamp;
-  std::string mpc_name;
 };
 
 enum class MPCSolveScheduleResult : uint8_t
@@ -72,12 +62,34 @@ enum class MPCSolveScheduleResult : uint8_t
   NOT_SCHEDULED_NO_MPC_READY
 };
 
+enum class MultiMPCSolveResult : uint8_t
+{
+  SUCCESS,
+  SUCCESS_OUTDATED,
+  FAILURE,
+  FAILURE_OUTDATED
+};
+
+struct MultiMPCSolution
+{
+  typedef std::shared_ptr<MultiMPCSolution> SharedPtr;
+  typedef std::unique_ptr<MultiMPCSolution> UniquePtr;
+
+  casadi::DMDict in;
+  casadi::DMDict solution;
+  casadi::Dict stats;
+  size_t timestamp;
+  std::string mpc_name;
+  size_t solve_time_nanosec;
+  MultiMPCSolveResult result = MultiMPCSolveResult::SUCCESS;
+};
+
 class MultiMPCManager
 {
 public:
   typedef std::shared_ptr<MultiMPCManager> SharedPtr;
   typedef std::unique_ptr<MultiMPCManager> UniquePtr;
-  typedef std::function<void (const MultiMPCSolution &)> SolutionCallback;
+  typedef std::function<void (MultiMPCSolution)> SolutionCallback;
 
   explicit MultiMPCManager(const MultiMPCManagerConfig & config);
 

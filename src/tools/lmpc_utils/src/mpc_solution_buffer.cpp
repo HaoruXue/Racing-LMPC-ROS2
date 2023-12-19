@@ -29,9 +29,6 @@ void MPCSolutionBuffer::set_mpc_solution(
   const size_t & start_timestamp)
 {
   std::unique_lock<std::shared_mutex> lock(mutex_);
-  if (!initialized_) {
-    throw std::runtime_error("Must call set_current_timestamp before calling set_mpc_solution.");
-  }
 
   if (x.size2() < u.size2()) {
     throw std::runtime_error("x must have at least as many columns as u.");
@@ -40,12 +37,13 @@ void MPCSolutionBuffer::set_mpc_solution(
   solution_.x = x;
   solution_.u = u;
   solution_.timestamp = start_timestamp;
+  initialized_ = true;
 }
 
 MPCSolution MPCSolutionBuffer::get_mpc_solution(const size_t & timestamp)
 {
   std::shared_lock<std::shared_mutex> lock(mutex_);
-  if (!initialized_) {
+  if (!initialized_.load(std::memory_order_acquire)) {
     throw std::runtime_error("Must call set_current_timestamp before calling get_mpc_solution.");
   }
 
@@ -67,7 +65,7 @@ MPCSolution MPCSolutionBuffer::get_mpc_solution(const size_t & timestamp)
 
 bool MPCSolutionBuffer::is_initialized() const
 {
-  return initialized_;
+  return initialized_.load(std::memory_order_acquire);
 }
 }  // namespace utils
 }  // namespace lmpc

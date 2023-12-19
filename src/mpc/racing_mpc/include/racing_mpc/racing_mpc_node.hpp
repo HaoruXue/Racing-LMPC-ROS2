@@ -38,6 +38,7 @@
 
 #include "racing_mpc/racing_mpc_config.hpp"
 #include "racing_mpc/racing_mpc.hpp"
+#include "racing_mpc/multi_mpc_manager.hpp"
 
 namespace lmpc
 {
@@ -62,31 +63,29 @@ protected:
   RacingTrajectory::SharedPtr track_ {};
   ROSTrajectoryVisualizer::UniquePtr vis_ {};
   BaseVehicleModel::SharedPtr model_ {};
-  RacingMPC::SharedPtr mpc_ {};
-  RacingMPC::SharedPtr mpc_full_ {};
+  MultiMPCManager::UniquePtr mpc_manager_ {};
+  RacingMPC::SharedPtr mpc_full_ {};  // used to compute initial guess
   lmpc::utils::CycleProfiler<double>::UniquePtr profiler_ {};
   lmpc::utils::CycleProfiler<double>::UniquePtr profiler_iter_count_ {};
   double speed_limit_ = config_->x_max(XIndex::VX).get_elements()[0];
   double speed_scale_ = 1.0;
+
   std::shared_mutex state_msg_mutex_;
   std::shared_mutex traj_mutex_;
   std::shared_mutex speed_limit_mutex_;
   std::shared_mutex speed_scale_mutex_;
-  std::shared_mutex telemetry_msg_mutex_;
-  std::shared_mutex actuation_msg_mutex_;
+  std::shared_mutex last_sol_mutex_;
 
   casadi::DM last_x_;
   casadi::DM last_u_;
   casadi::DM last_du_;
   casadi::DM last_convex_combi_;
-  casadi::DMDict sol_in_;
   casadi::Function f2g_;
   casadi::Function discrete_dynamics_ {};
   casadi::Function to_base_control_ {};
 
   mpclab_msgs::msg::VehicleStateMsg::SharedPtr vehicle_state_msg_ {};
   mpclab_msgs::msg::VehicleActuationMsg::SharedPtr vehicle_actuation_msg_ {};
-  lmpc_msgs::msg::MPCTelemetry::SharedPtr telemetry_msg_ {};
 
   // publishers (to world/simulator)
   rclcpp::Publisher<mpclab_msgs::msg::VehicleActuationMsg>::SharedPtr vehicle_actuation_pub_ {};
@@ -104,13 +103,11 @@ protected:
 
   // timers
   rclcpp::TimerBase::SharedPtr step_timer_;
-  rclcpp::TimerBase::SharedPtr publish_timer_;
 
   // callback groups
   rclcpp::CallbackGroup::SharedPtr state_callback_group_;
   rclcpp::CallbackGroup::SharedPtr trajectory_command_callback_group_;
   rclcpp::CallbackGroup::SharedPtr step_timer_callback_group_;
-  rclcpp::CallbackGroup::SharedPtr publish_timer_callback_group_;
 
   // parameter callback handle
   OnSetParametersCallbackHandle::SharedPtr callback_handle_;
@@ -119,9 +116,9 @@ protected:
   void on_new_state(const mpclab_msgs::msg::VehicleStateMsg::SharedPtr msg);
   void on_new_trajectory_command(const lmpc_msgs::msg::TrajectoryCommand::SharedPtr msg);
   void on_step_timer();
-  void on_publish_timer();
   rcl_interfaces::msg::SetParametersResult on_set_parameters(
     std::vector<rclcpp::Parameter> const & parameters);
+  void mpc_solve_callback(MultiMPCSolution solution);
 
   // helpers
   void change_trajectory(const int & traj_idx);

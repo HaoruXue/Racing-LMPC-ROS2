@@ -17,8 +17,8 @@
       q_heading: 1.0
       q_boundary: 20.0 # track boundary slack cost. 0 to disable (hard constraint)
       q_vel: 0.2
-      q_vy: 0.01
-      q_vyaw: 0.01
+      q_vy: 0.1
+      q_vyaw: 0.1
       r: [
         1e-5, 0.0,
         0.0, 1.0,

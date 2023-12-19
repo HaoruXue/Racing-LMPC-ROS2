@@ -20,6 +20,7 @@
 #include <shared_mutex>
 #include <memory>
 #include <vector>
+#include <atomic>
 
 #include <casadi/casadi.hpp>
 
@@ -80,7 +81,7 @@ public:
 protected:
   MPCSolution solution_;
   std::shared_mutex mutex_;
-  bool initialized_;
+  std::atomic_bool initialized_;
 };
 
 }  // namespace utils

@@ -44,12 +44,11 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   model_(vehicle_model::vehicle_model_factory::load_vehicle_model(
       utils::declare_parameter<std::string>(
         this, "racing_mpc_node.vehicle_model_name"), this)),
-  mpc_(std::make_shared<RacingMPC>(config_, model_, false)),
   profiler_(std::make_unique<lmpc::utils::CycleProfiler<double>>(10)),
   profiler_iter_count_(std::make_unique<lmpc::utils::CycleProfiler<double>>(10)),
   speed_scale_(utils::declare_parameter<double>(this, "racing_mpc_node.velocity_profile_scale")),
-  f2g_(track_->frenet_to_global_function().map(mpc_->get_config().N)),
-  to_base_control_(model_->to_base_control().map(mpc_->get_config().N - 1))
+  f2g_(track_->frenet_to_global_function().map(config_->N)),
+  to_base_control_(model_->to_base_control().map(config_->N - 1))
 {
   // add a full dynamics MPC solver for the problem initialization
   auto full_config = std::make_shared<RacingMPCConfig>(*config_);
@@ -57,19 +56,24 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   full_config->max_iter = 1000;
   mpc_full_ = std::make_shared<RacingMPC>(full_config, model_, true);
 
+  // prepare MPC manager
+  auto mpc_manager_config = std::make_shared<MultiMPCManagerConfig>();
+  mpc_manager_config->num_cycle_to_switch = config_->num_cycle_to_switch;
+  mpc_manager_config->max_extrapolate_horizon = config_->max_extrapolate_horizon;
+  for (size_t i = 0; i < config_->num_mpc; i++) {
+    auto model =
+      vehicle_model::vehicle_model_factory::copy_vehicle_model(
+      get_parameter(
+        "racing_mpc_node.vehicle_model_name").as_string(), model_);
+    mpc_manager_config->mpcs.push_back(std::make_shared<RacingMPC>(config_, model, false));
+  }
+  mpc_manager_ = std::make_unique<MultiMPCManager>(*mpc_manager_config);
+
   // add visualizations for the trajectory
   vis_->attach_ros_publishers(this, 1.0, true, true);
 
   // initialize the actuation message
   vehicle_actuation_msg_ = std::make_shared<mpclab_msgs::msg::VehicleActuationMsg>();
-
-  // initialize the mpc telemetry message
-  telemetry_msg_ = std::make_shared<lmpc_msgs::msg::MPCTelemetry>();
-
-  // initialize the mpc inputs
-  const auto N = static_cast<casadi_int>(mpc_->get_config().N);
-  sol_in_["T_ref"] = casadi::DM::zeros(1, N - 1) + dt_;
-  sol_in_["total_length"] = track_->total_length();
 
   // build discrete dynamics
   const auto x_sym = casadi::MX::sym("x", model_->nx());
@@ -125,13 +129,6 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
       std::chrono::duration<double>(dt_), std::bind(
         &RacingMPCNode::on_step_timer,
         this), step_timer_callback_group_);
-    // initialize the actuation time at 1/10 of dt
-    publish_timer_callback_group_ = this->create_callback_group(
-      rclcpp::CallbackGroupType::MutuallyExclusive);
-    publish_timer_ = this->create_wall_timer(
-      std::chrono::duration<double>(dt_ / 10.0), std::bind(
-        &RacingMPCNode::on_publish_timer,
-        this), publish_timer_callback_group_);
   }
 }
 
@@ -142,7 +139,6 @@ void RacingMPCNode::on_new_state(const mpclab_msgs::msg::VehicleStateMsg::Shared
   lock.unlock();
   if (config_->step_mode == RacingMPCStepMode::STEP) {
     on_step_timer();
-    on_publish_timer();
   }
 }
 
@@ -170,6 +166,8 @@ void RacingMPCNode::on_step_timer()
   using casadi::DM;
   using casadi::Slice;
   static bool jitted = !config_->jit;  // if JIT is done
+  static size_t timestamp = 0;
+  timestamp++;
 
   lmpc_msgs::msg::MPCTelemetry telemetry_msg;
 
@@ -184,6 +182,8 @@ void RacingMPCNode::on_step_timer()
     state_msg_lock.unlock();
     return;
   }
+
+  // prepare the MPC states in frenent frame
   const auto & p = vehicle_state_msg_->p;
   const auto & v = vehicle_state_msg_->v;
   const auto & w = vehicle_state_msg_->w;
@@ -193,73 +193,65 @@ void RacingMPCNode::on_step_timer()
   const Pose2D current_global_pose{{vehicle_state_msg_->x.x, vehicle_state_msg_->x.y},
     vehicle_state_msg_->e.psi};
   state_msg_lock.unlock();
-
-  const auto mpc_solve_start = std::chrono::system_clock::now();
-
   FrenetPose2D current_frenet_pose;
   track_->global_to_frenet(current_global_pose, current_frenet_pose);
   x_ic_base(XIndex::PX) = current_frenet_pose.position.s;
   x_ic_base(XIndex::PY) = current_frenet_pose.position.t;
   x_ic_base(XIndex::YAW) = current_frenet_pose.yaw;
 
-  static size_t profile_step_count = 0;
-  const auto N = static_cast<casadi_int>(mpc_->get_config().N);
+  const auto N = static_cast<casadi_int>(config_->N);
+  casadi::DMDict sol_in;
+  sol_in["T_ref"] = casadi::DM::zeros(1, N - 1) + dt_;
+  sol_in["T_optm_ref"] = sol_in.at("T_ref");
+  sol_in["total_length"] = track_->total_length();
 
   // prepare the mpc inputs
-  std::shared_lock<std::shared_mutex> actuation_msg_lock(actuation_msg_mutex_);
   const auto u_ic_base = casadi::DM {
     vehicle_actuation_msg_->u_a > 0.0 ? vehicle_actuation_msg_->u_a : 0.0,
     vehicle_actuation_msg_->u_a < 0.0 ? vehicle_actuation_msg_->u_a : 0.0,
     vehicle_actuation_msg_->u_steer
   };
-  actuation_msg_lock.unlock();
   const auto x_ic =
     model_->from_base_state()(casadi::DMDict{{"x", x_ic_base}, {"u", u_ic_base}}).at("x_out");
   const auto u_ic =
     model_->from_base_control()(
     casadi::DMDict{{"x", x_ic_base},
       {"u", u_ic_base}}).at("u_out");
-  // current input
-  sol_in_["u_ic"] = u_ic;
+  // current control input
+  sol_in["u_ic"] = u_ic;
   // current time
-  sol_in_["t_ic"] = vehicle_state_msg_->t;
+  sol_in["t_ic"] = vehicle_state_msg_->t;
 
-  // std::cout << "x_ic: " << x_ic << std::endl;
-
-
-  // if the mpc is not solved, pass the initial guess
+  // if the mpc has never been solved, pass the initial guess
+  std::unique_lock<std::shared_mutex> last_sol_lock(last_sol_mutex_);
   if (!mpc_full_->solved()) {
-    last_x_ = DM::zeros(mpc_->get_model().nx(), N);
-    last_u_ = DM::zeros(mpc_->get_model().nu(), N - 1);
-    last_du_ = DM::zeros(mpc_->get_model().nu(), N - 1);
+    last_x_ = DM::zeros(model_->nx(), N);
+    last_u_ = DM::zeros(model_->nu(), N - 1);
+    last_du_ = DM::zeros(model_->nu(), N - 1);
     if (config_->learning) {
       last_convex_combi_ = DM::zeros(config_->num_ss_pts);
     }
     last_x_(Slice(), 0) = x_ic;
+    // forward roll out the initial guess
     for (int i = 1; i < N; i++) {
-      last_x_(
-        Slice(),
-        i) =
-        discrete_dynamics_(
-        casadi::DMVector{last_x_(Slice(), i - 1),
-          last_u_(Slice(), i - 1)})[0];
+      last_x_(Slice(), i) =
+        discrete_dynamics_(casadi::DMVector{last_x_(Slice(), i - 1), last_u_(Slice(), i - 1)})[0];
     }
-    sol_in_["X_optm_ref"] = last_x_;
-    sol_in_["U_optm_ref"] = last_u_;
-    sol_in_["dU_optm_ref"] = last_du_;
+    sol_in["X_optm_ref"] = last_x_;
+    sol_in["U_optm_ref"] = last_u_;
+    sol_in["dU_optm_ref"] = last_du_;
     if (config_->learning) {
-      sol_in_["convex_combi_optm_ref"] = last_convex_combi_;
+      sol_in["convex_combi_optm_ref"] = last_convex_combi_;
     }
-    sol_in_["T_optm_ref"] = sol_in_.at("T_ref");
-    sol_in_["X_ref"] = last_x_;
-    sol_in_["U_ref"] = last_u_;
-    sol_in_["x_ic"] = x_ic;
+    sol_in["X_ref"] = last_x_;
+    sol_in["U_ref"] = last_u_;
+    sol_in["x_ic"] = x_ic;
   } else {
     // prepare the next reference
     if (config_->step_mode == RacingMPCStepMode::CONTINUOUS) {
-      sol_in_["x_ic"] = discrete_dynamics_(casadi::DMVector{x_ic, last_u_(Slice(), 0)})[0];
+      sol_in["x_ic"] = discrete_dynamics_(casadi::DMVector{x_ic, last_u_(Slice(), 0)})[0];
     } else if (config_->step_mode == RacingMPCStepMode::STEP) {
-      sol_in_["x_ic"] = x_ic;
+      sol_in["x_ic"] = x_ic;
     } else {
       throw std::runtime_error("Unknown RacingMPCStepMode");
     }
@@ -270,14 +262,14 @@ void RacingMPCNode::on_step_timer()
     last_x_(Slice(), -1) =
       discrete_dynamics_(casadi::DMVector{last_x_(Slice(), -2), last_u_(Slice(), -1)})[0];
 
-    sol_in_["X_ref"] = last_x_;
-    sol_in_["U_ref"] = last_u_;
-    sol_in_["X_optm_ref"] = last_x_;
+    sol_in["X_ref"] = last_x_;
+    sol_in["U_ref"] = last_u_;
+    sol_in["X_optm_ref"] = last_x_;
 
-    sol_in_["U_optm_ref"] = last_u_;
-    sol_in_["dU_optm_ref"] = last_du_;
+    sol_in["U_optm_ref"] = last_u_;
+    sol_in["dU_optm_ref"] = last_du_;
     if (config_->learning) {
-      sol_in_["convex_combi_ref"] = last_convex_combi_;
+      sol_in["convex_combi_ref"] = last_convex_combi_;
     }
   }
 
@@ -312,11 +304,11 @@ void RacingMPCNode::on_step_timer()
   }
   speed_limit_lock.unlock();
   speed_scale_lock.unlock();
-  sol_in_["bound_left"] = left_ref;
-  sol_in_["bound_right"] = right_ref;
-  sol_in_["curvatures"] = curvature_ref;
-  sol_in_["vel_ref"] = vel_ref;
-  sol_in_["bank_angle"] = bank_angle;
+  sol_in["bound_left"] = left_ref;
+  sol_in["bound_right"] = right_ref;
+  sol_in["curvatures"] = curvature_ref;
+  sol_in["vel_ref"] = vel_ref;
+  sol_in["bank_angle"] = bank_angle;
 
   // solve the mpc
   auto sol_out = casadi::DMDict{};
@@ -325,9 +317,8 @@ void RacingMPCNode::on_step_timer()
   // solve the first time with full dynamics
   if (!mpc_full_->solved()) {
     RCLCPP_INFO(this->get_logger(), "Get initial solution with full dynamics.");
-    mpc_full_->solve(sol_in_, sol_out, stats);
+    mpc_full_->solve(sol_in, sol_out, stats);
     last_x_ = sol_out["X_optm"];
-
     last_u_ = sol_out["U_optm"];
     last_du_ = sol_out["dU_optm"];
     if (config_->learning) {
@@ -341,194 +332,54 @@ void RacingMPCNode::on_step_timer()
     return;
   }
 
-  // const auto mpc_start = std::chrono::high_resolution_clock::now();
+  // solve the first time with JIT
   if (!jitted) {
     RCLCPP_INFO(this->get_logger(), "Using the first solve to execute just-in-time compilation.");
-  }
-  mpc_->solve(sol_in_, sol_out, stats);
-
-  if (sol_out.count("X_optm")) {
-    last_x_ = sol_out["X_optm"];
-    last_u_ = sol_out["U_optm"];
-    last_du_ = sol_out["dU_optm"];
-    telemetry_msg.solved = true;
-  } else {
-    RCLCPP_ERROR_THROTTLE(
-      this->get_logger(), *this->get_clock(), 1000,
-      "MPC could not be solved.");
-    telemetry_msg.solved = false;
-  }
-  telemetry_msg.state = last_x_.get_elements();
-  telemetry_msg.control =
-    to_base_control_(
-    casadi::DMDict{{"x",
-      last_x_(
-        Slice(), Slice(
-          0,
-          static_cast<casadi_int>(mpc_->get_config().N - 1)))},
-      {"u", last_u_}}).at("u_out").get_elements();
-
-  if (!jitted) {
-    // on first solve, exit since JIT will take a long time
-    jitted = true;
-    RCLCPP_INFO(this->get_logger(), "JIT is done. Discarding the first solve...");
+    const auto jit_sol = mpc_manager_->initialize(sol_in, timestamp);
+    if (jit_sol.result == MultiMPCSolveResult::FAILURE) {
+      RCLCPP_FATAL(this->get_logger(), "Failed to solve the first time with JIT.");
+    } else {
+      jitted = true;
+      RCLCPP_INFO(this->get_logger(), "JIT is done. Discarding the first solve...");
+    }
     return;
   }
 
-  auto last_x_global = last_x_;
-  last_x_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()) =
-    f2g_(last_x_(Slice(XIndex::PX, XIndex::YAW + 1), Slice()))[0];
-
-  auto x_ref_global = sol_in_.at("X_optm_ref");
-  x_ref_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()) =
-    f2g_(sol_in_.at("X_optm_ref")(Slice(XIndex::PX, XIndex::YAW + 1), Slice()))[0];
-
-  const auto mpc_solve_duration = std::chrono::system_clock::now() - mpc_solve_start;
-  const auto mpc_solve_duration_ms = mpc_solve_duration.count() * 1e-6;
-  profiler_->add_cycle_stats(mpc_solve_duration_ms);
-  telemetry_msg.solve_time = mpc_solve_duration_ms;
-  if (stats.count("iter_count")) {
-    profiler_iter_count_->add_cycle_stats(static_cast<double>(stats.at("iter_count")));
-  }
-  profile_step_count++;
-
-  traj_lock.unlock();
-  // sleep if the execution time is less than dt
+  // schedule the MPC solve
+  auto sched_timestamp = timestamp;
   if (config_->step_mode == RacingMPCStepMode::CONTINUOUS) {
-    if (mpc_solve_duration < std::chrono::duration<double>(dt_)) {
-      rclcpp::sleep_for(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(
-          std::chrono::duration<double>(dt_) - mpc_solve_duration));
-    }
+    sched_timestamp++;  // in continuous mode, the MPC is solved for the next cycle
   }
-
-  // record the MPC publish time
-  const auto now = this->now();
-
-  if (profile_step_count % profiler_->capacity() == 0) {
-    auto diagnostics_msg = diagnostic_msgs::msg::DiagnosticArray();
-    diagnostics_msg.status.push_back(
-      profiler_->profile().to_diagnostic_status(
-        "Racing MPC Solve Time", "(ms)", dt_ * 1e3));
-    diagnostics_msg.status.push_back(
-      profiler_iter_count_->profile().to_diagnostic_status(
-        "Racing MPC Iteration Count", "Number of Solver Iterations", 50));
-    diagnostics_msg.header.stamp = now;
-    diagnostics_pub_->publish(diagnostics_msg);
-    profile_step_count = 0;
-  }
-
-  // publish the visualization message
-  auto mpc_vis_msg = nav_msgs::msg::Path();
-  mpc_vis_msg.header.stamp = now;
-  mpc_vis_msg.header.frame_id = "map";
-  mpc_vis_msg.poses.reserve(N);
-  for (int i = 0; i < N; i++) {
-    auto & pose = mpc_vis_msg.poses.emplace_back();
-    pose.header.stamp = now;
-    pose.header.frame_id = "map";
-    pose.pose.position.x = x_ref_global(XIndex::PX, i).get_elements()[0];
-    pose.pose.position.y = x_ref_global(XIndex::PY, i).get_elements()[0];
-    pose.pose.position.z = 0.0;
-    pose.pose.orientation = tf2::toMsg(
-      utils::TransformHelper::quaternion_from_heading(
-        x_ref_global(XIndex::YAW, i).get_elements()[0]));
-  }
-  mpc_vis_pub_->publish(mpc_vis_msg);
-
-  // publish the ref visualization message
-  auto ref_vis_msg = nav_msgs::msg::Path();
-  ref_vis_msg.header.stamp = now;
-  ref_vis_msg.header.frame_id = "map";
-  ref_vis_msg.poses.reserve(N);
-  for (int i = 0; i < N; i++) {
-    auto & pose = ref_vis_msg.poses.emplace_back();
-    pose.header.stamp = now;
-    pose.header.frame_id = "map";
-    pose.pose.position.x = last_x_global(XIndex::PX, i).get_elements()[0];
-    pose.pose.position.y = last_x_global(XIndex::PY, i).get_elements()[0];
-    pose.pose.position.z = 0.0;
-    pose.pose.orientation = tf2::toMsg(
-      utils::TransformHelper::quaternion_from_heading(
-        last_x_global(XIndex::YAW, i).get_elements()[0]));
-  }
-  ref_vis_pub_->publish(ref_vis_msg);
-
-  // publish the safe set visualization message
-  if (sol_out.count("ss_x")) {
-    const auto & ss_X = sol_out["ss_x"];
-    // const auto & ss_J = sol_out["ss_j"];
-    auto ss_vis_msg = visualization_msgs::msg::MarkerArray();
-    auto & marker = ss_vis_msg.markers.emplace_back();
-    marker.header.stamp = now;
-    marker.header.frame_id = "map";
-    marker.ns = "safe_set";
-    marker.id = 0;
-    marker.type = visualization_msgs::msg::Marker::SPHERE_LIST;
-    const auto scale = model_->get_base_config().chassis_config->wheel_base / 10.0;
-    marker.scale.x = scale;
-    marker.scale.y = scale;
-    marker.scale.z = scale;
-    marker.action = visualization_msgs::msg::Marker::MODIFY;
-    marker.points.reserve(ss_X.size2());
-    for (casadi_int i = 0; i < ss_X.size2(); i++) {
-      const auto ss_x_frenet = ss_X(Slice(XIndex::PX, XIndex::YAW + 1), i);
-      const auto ss_x_global = track_->frenet_to_global_function()(ss_x_frenet)[0].get_elements();
-      auto & point = marker.points.emplace_back();
-      point.x = ss_x_global[0];
-      point.y = ss_x_global[1];
-      point.z = 0.0;
-      auto & color = marker.colors.emplace_back();
-      color.r = 0.0;
-      color.g = 1.0;
-      color.b = 0.0;
-      color.a = 1.0;
-    }
-    ss_vis_pub_->publish(ss_vis_msg);
-  }
-
-  // publish the telemetry message
-  std::unique_lock<std::shared_mutex> telemetry_msg_lock(telemetry_msg_mutex_);
-  *telemetry_msg_ = telemetry_msg;
-  telemetry_msg_->header.stamp = now;
-  mpc_telemetry_pub_->publish(*telemetry_msg_);
-  telemetry_msg_lock.unlock();
-}
-
-void RacingMPCNode::on_publish_timer()
-{
-  using casadi::Slice;
-  using casadi::DM;
-
-  // if the MPC has not been solved, return
-  std::shared_lock<std::shared_mutex> telemetry_msg_lock(telemetry_msg_mutex_);
-  const auto t0 = rclcpp::Time(telemetry_msg_->header.stamp).seconds();
-  if (t0 <= 0.0) {
-    return;
-  }
-
-  // from the mpc interval and current time, compute the index of control to be published
-  const auto now = this->now();
-  const auto t = now.seconds();
-  const auto N = static_cast<casadi_int>(mpc_->get_config().N);
-  const auto k = static_cast<casadi_int>(std::floor((t - t0) / dt_)) + delay_step_;
-
-  if (k < 0 || k >= N - 1) {
-    RCLCPP_ERROR_THROTTLE(
+  const auto schedule_result = mpc_manager_->solve(
+    sol_in, timestamp,
+    std::bind(&RacingMPCNode::mpc_solve_callback, this, std::placeholders::_1));
+  if (schedule_result == MPCSolveScheduleResult::NOT_SCHEDULED_PRIMARY_BUSY) {
+    RCLCPP_INFO_THROTTLE(
       this->get_logger(), *this->get_clock(), 1000,
-      "Cannot publish actuation message. No enough solutions in the buffer. k = %lld", k);
+      "Primary MPC is busy. Skip solving.");
+    return;
+  } else if (schedule_result == MPCSolveScheduleResult::NOT_SCHEDULED_NO_MPC_READY) {
+    RCLCPP_INFO_THROTTLE(
+      this->get_logger(), *this->get_clock(), 1000,
+      "No MPC is ready. Skip solving.");
+    return;
+  }
+  last_sol_lock.unlock();
+
+  // get the solution from the buffer
+  const auto solution = mpc_manager_->get_solution(timestamp);
+  using lmpc::utils::MPCSolutionStatus;
+  if (solution.status != MPCSolutionStatus::OK) {
+    RCLCPP_INFO_THROTTLE(
+      this->get_logger(), *this->get_clock(), 1000,
+      "No MPC Solution in the window. Skip publishing.");
     return;
   }
 
+  const auto now = this->now();
   // publish the actuation message
-  const size_t u_start = static_cast<size_t>(k * model_->BaseVehicleModel::nu());
-  const size_t u_end = static_cast<size_t>((k + 1) * model_->BaseVehicleModel::nu());
-  const auto u_vec = std::vector<double>(
-    telemetry_msg_->control.begin() + u_start,
-    telemetry_msg_->control.begin() + u_end);
-  telemetry_msg_lock.unlock();
-
-  std::unique_lock<std::shared_mutex> actuation_msg_lock(actuation_msg_mutex_);
+  const auto u_vec = model_->to_base_control()(
+    casadi::DMDict{{"x", solution.x}, {"u", solution.u}}).at("u_out").get_elements();
   vehicle_actuation_msg_->header.stamp = now;
   if (abs(u_vec[UIndex::FD]) > abs(u_vec[UIndex::FB])) {
     vehicle_actuation_msg_->u_a = u_vec[UIndex::FD];
@@ -536,7 +387,6 @@ void RacingMPCNode::on_publish_timer()
     vehicle_actuation_msg_->u_a = u_vec[UIndex::FB];
   }
   vehicle_actuation_msg_->u_steer = u_vec[UIndex::STEER];
-  actuation_msg_lock.unlock();
   vehicle_actuation_pub_->publish(*vehicle_actuation_msg_);
 }
 
@@ -570,6 +420,140 @@ rcl_interfaces::msg::SetParametersResult RacingMPCNode::on_set_parameters(
   return result;
 }
 
+void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
+{
+  using casadi::DM;
+  using casadi::Slice;
+  static size_t profile_step_count = 0;
+  std::unique_lock<std::shared_mutex> traj_lock(traj_mutex_);
+  std::unique_lock<std::shared_mutex> last_sol_lock(last_sol_mutex_);
+
+  const auto & sol_in = solution.in;
+  const auto & sol_out = solution.solution;
+  const auto & stats = solution.stats;
+  lmpc_msgs::msg::MPCTelemetry telemetry_msg;
+  if (solution.result == MultiMPCSolveResult::SUCCESS) {
+    last_x_ = sol_out.at("X_optm");
+    last_u_ = sol_out.at("U_optm");
+    last_du_ = sol_out.at("dU_optm");
+    telemetry_msg.solved = true;
+  } else {
+    RCLCPP_ERROR_THROTTLE(
+      this->get_logger(), *this->get_clock(), 1000,
+      "MPC could not be solved.");
+    telemetry_msg.solved = false;
+  }
+  telemetry_msg.state = last_x_.get_elements();
+  telemetry_msg.control =
+    to_base_control_(
+    casadi::DMDict{{"x",
+      last_x_(Slice(), Slice(0, static_cast<casadi_int>(config_->N - 1)))},
+      {"u", last_u_}}).at("u_out").get_elements();
+
+  auto last_x_global = last_x_;
+  last_x_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()) =
+    f2g_(last_x_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()))[0];
+
+  auto x_ref_global = sol_in.at("X_optm_ref");
+  x_ref_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()) =
+    f2g_(sol_in.at("X_optm_ref")(Slice(XIndex::PX, XIndex::YAW + 1), Slice()))[0];
+  traj_lock.unlock();
+
+  const auto mpc_solve_duration_ms = solution.solve_time_nanosec / 1e6;
+  profiler_->add_cycle_stats(mpc_solve_duration_ms);
+  telemetry_msg.solve_time = mpc_solve_duration_ms;
+  if (stats.count("iter_count")) {
+    profiler_iter_count_->add_cycle_stats(static_cast<double>(stats.at("iter_count")));
+  }
+  const auto now = this->now();
+  profile_step_count++;
+  if (profile_step_count == profiler_->capacity()) {
+    auto diagnostics_msg = diagnostic_msgs::msg::DiagnosticArray();
+    diagnostics_msg.status.push_back(
+      profiler_->profile().to_diagnostic_status(
+        "Racing MPC Solve Time", "(ms)", dt_ * 1e3));
+    diagnostics_msg.status.push_back(
+      profiler_iter_count_->profile().to_diagnostic_status(
+        "Racing MPC Iteration Count", "Number of Solver Iterations", 50));
+    diagnostics_msg.header.stamp = now;
+    diagnostics_pub_->publish(diagnostics_msg);
+    profile_step_count = 0;
+  }
+
+  // publish the visualization message
+  auto mpc_vis_msg = nav_msgs::msg::Path();
+  mpc_vis_msg.header.stamp = now;
+  mpc_vis_msg.header.frame_id = "map";
+  mpc_vis_msg.poses.reserve(config_->N);
+  for (casadi_int i = 0; i < static_cast<casadi_int>(config_->N); i++) {
+    auto & pose = mpc_vis_msg.poses.emplace_back();
+    pose.header.stamp = now;
+    pose.header.frame_id = "map";
+    pose.pose.position.x = x_ref_global(XIndex::PX, i).get_elements()[0];
+    pose.pose.position.y = x_ref_global(XIndex::PY, i).get_elements()[0];
+    pose.pose.position.z = 0.0;
+    pose.pose.orientation = tf2::toMsg(
+      utils::TransformHelper::quaternion_from_heading(
+        x_ref_global(XIndex::YAW, i).get_elements()[0]));
+  }
+  mpc_vis_pub_->publish(mpc_vis_msg);
+
+  // publish the ref visualization message
+  auto ref_vis_msg = nav_msgs::msg::Path();
+  ref_vis_msg.header.stamp = now;
+  ref_vis_msg.header.frame_id = "map";
+  ref_vis_msg.poses.reserve(config_->N);
+  for (casadi_int i = 0; i < static_cast<casadi_int>(config_->N); i++) {
+    auto & pose = ref_vis_msg.poses.emplace_back();
+    pose.header.stamp = now;
+    pose.header.frame_id = "map";
+    pose.pose.position.x = last_x_global(XIndex::PX, i).get_elements()[0];
+    pose.pose.position.y = last_x_global(XIndex::PY, i).get_elements()[0];
+    pose.pose.position.z = 0.0;
+    pose.pose.orientation = tf2::toMsg(
+      utils::TransformHelper::quaternion_from_heading(
+        last_x_global(XIndex::YAW, i).get_elements()[0]));
+  }
+  ref_vis_pub_->publish(ref_vis_msg);
+
+  // publish the safe set visualization message
+  if (sol_out.count("ss_x")) {
+    const auto & ss_X = sol_out.at("ss_x");
+    // const auto & ss_J = sol_out["ss_j"];
+    auto ss_vis_msg = visualization_msgs::msg::MarkerArray();
+    auto & marker = ss_vis_msg.markers.emplace_back();
+    marker.header.stamp = now;
+    marker.header.frame_id = "map";
+    marker.ns = "safe_set";
+    marker.id = 0;
+    marker.type = visualization_msgs::msg::Marker::SPHERE_LIST;
+    const auto scale = model_->get_base_config().chassis_config->wheel_base / 10.0;
+    marker.scale.x = scale;
+    marker.scale.y = scale;
+    marker.scale.z = scale;
+    marker.action = visualization_msgs::msg::Marker::MODIFY;
+    marker.points.reserve(ss_X.size2());
+    for (casadi_int i = 0; i < ss_X.size2(); i++) {
+      const auto ss_x_frenet = ss_X(Slice(XIndex::PX, XIndex::YAW + 1), i);
+      const auto ss_x_global = track_->frenet_to_global_function()(ss_x_frenet)[0].get_elements();
+      auto & point = marker.points.emplace_back();
+      point.x = ss_x_global[0];
+      point.y = ss_x_global[1];
+      point.z = 0.0;
+      auto & color = marker.colors.emplace_back();
+      color.r = 0.0;
+      color.g = 1.0;
+      color.b = 0.0;
+      color.a = 1.0;
+    }
+    ss_vis_pub_->publish(ss_vis_msg);
+  }
+
+  // publish the telemetry message
+  telemetry_msg.header.stamp = now;
+  mpc_telemetry_pub_->publish(telemetry_msg);
+}
+
 void RacingMPCNode::change_trajectory(const int & traj_idx)
 {
   if (traj_idx == traj_idx_) {
@@ -577,6 +561,7 @@ void RacingMPCNode::change_trajectory(const int & traj_idx)
   }
 
   std::unique_lock<std::shared_mutex> traj_lock(traj_mutex_);
+  std::unique_lock<std::shared_mutex> last_sol_lock(last_sol_mutex_);
   auto & old_traj = *track_;
   auto new_traj = tracks_->get_trajectory(traj_idx);
 
@@ -602,7 +587,7 @@ void RacingMPCNode::change_trajectory(const int & traj_idx)
       state_msg_lock.unlock();
 
       // convert previous solution to new coordinate system
-      if (mpc_->solved()) {
+      if (mpc_manager_->is_solution_initialized()) {
         for (casadi_int i = 0; i < static_cast<casadi_int>(config_->N); i++) {
           const auto xi = last_x_(casadi::Slice(), i).get_elements();
           const FrenetPose2D old_frenet_pose {{xi[XIndex::PX], xi[XIndex::PY]}, xi[XIndex::YAW]};
@@ -614,10 +599,9 @@ void RacingMPCNode::change_trajectory(const int & traj_idx)
       }
     }
     track_ = new_traj;
-    f2g_ = track_->frenet_to_global_function().map(mpc_->get_config().N);
+    f2g_ = track_->frenet_to_global_function().map(config_->N);
     traj_idx_ = traj_idx;
     vis_->change_trajectory(*track_);
-    sol_in_["total_length"] = track_->total_length();
 
     // build discrete dynamics
     const auto x_sym = casadi::MX::sym("x", model_->nx());

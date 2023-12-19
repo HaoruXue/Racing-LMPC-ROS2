@@ -18,6 +18,7 @@
 #include <vector>
 #include <functional>
 #include <future>
+#include <chrono>
 #include "racing_mpc/multi_mpc_manager.hpp"
 
 namespace lmpc
@@ -41,6 +42,7 @@ MultiMPCSolution MultiMPCManager::initialize(const casadi::DMDict & in, const si
   auto solve_async = [&](const size_t & mpc_idx) {
       MultiMPCSolution solution;
       mpcs_[mpc_idx]->solve(in, solution.solution, solution.stats);
+      solution.in = in;
       solution.timestamp = timestamp;
       solution.mpc_name = "MPC " + std::to_string(mpc_idx);
       return solution;
@@ -57,11 +59,19 @@ MultiMPCSolution MultiMPCManager::initialize(const casadi::DMDict & in, const si
   }
 
   // put current MPC solution into the buffer
-  const auto solution = mpc_futures_[current_mpc_idx_].get();
-  if (mpcs_[current_mpc_idx_]->is_solve_success(solution.solution, solution.stats)) {
-    const auto x = mpcs_[current_mpc_idx_]->get_x(solution.solution);
-    const auto u = mpcs_[current_mpc_idx_]->get_u(solution.solution);
-    buffer_.set_mpc_solution(x, u, timestamp);
+  MultiMPCSolution solution;
+  try {
+    solution = mpc_futures_[current_mpc_idx_].get();
+    if (mpcs_[current_mpc_idx_]->is_solve_success(solution.solution, solution.stats)) {
+      const auto x = mpcs_[current_mpc_idx_]->get_x(solution.solution);
+      const auto u = mpcs_[current_mpc_idx_]->get_u(solution.solution);
+      buffer_.set_mpc_solution(x, u, timestamp);
+    } else {
+      solution.result = MultiMPCSolveResult::FAILURE;
+    }
+  } catch (const std::exception & e) {
+    std::cout << "Exception caught: " << e.what() << std::endl;
+    solution.result = MultiMPCSolveResult::FAILURE;
   }
   return solution;
 }
@@ -116,16 +126,31 @@ MultiMPCSolution MultiMPCManager::solve_mpc_thread(
   const size_t timestamp,
   SolutionCallback callback)
 {
+  const auto start_time = std::chrono::high_resolution_clock::now();
   MultiMPCSolution solution;
+  solution.in = in;
   mpcs_[mpc_idx]->solve(in, solution.solution, solution.stats);
+  const auto end_time = std::chrono::high_resolution_clock::now();
+  solution.solve_time_nanosec =
+    std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count();
   solution.timestamp = timestamp;
   solution.mpc_name = "MPC " + std::to_string(mpc_idx);
   // only update the buffer if the solution is from the current MPC
+  const auto solve_success = mpcs_[mpc_idx]->is_solve_success(solution.solution, solution.stats);
   if (current_mpc_idx_ == mpc_idx) {
-    if (mpcs_[mpc_idx]->is_solve_success(solution.solution, solution.stats)) {
+    if (solve_success) {
       const auto x = mpcs_[mpc_idx]->get_x(solution.solution);
       const auto u = mpcs_[mpc_idx]->get_u(solution.solution);
       buffer_.set_mpc_solution(x, u, timestamp);
+      solution.result = MultiMPCSolveResult::SUCCESS;
+    } else {
+      solution.result = MultiMPCSolveResult::FAILURE;
+    }
+  } else {
+    if (solve_success) {
+      solution.result = MultiMPCSolveResult::SUCCESS_OUTDATED;
+    } else {
+      solution.result = MultiMPCSolveResult::FAILURE_OUTDATED;
     }
   }
   callback(solution);
