@@ -10,6 +10,8 @@
       verbose: false
       jit: false
       num_mpc: 1
+      num_cycle_to_switch: 10
+      max_extrapolate_horizon: 10
 
       q_contour: 0.3
       q_heading: 0.5

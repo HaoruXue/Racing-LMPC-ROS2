@@ -72,6 +72,8 @@ RacingMPCConfig::SharedPtr load_parameters(rclcpp::Node * node)
           declare_bool("racing_mpc.verbose"),
           declare_bool("racing_mpc.jit"),
           static_cast<size_t>(declare_int("racing_mpc.num_mpc")),
+          static_cast<size_t>(declare_int("racing_mpc.num_cycle_to_switch")),
+          static_cast<size_t>(declare_int("racing_mpc.max_extrapolate_horizon")),
           step_mode,
           casadi::DM(declare_double("racing_mpc.q_contour")),
           casadi::DM(declare_double("racing_mpc.q_heading")),

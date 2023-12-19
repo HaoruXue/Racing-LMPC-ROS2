@@ -50,6 +50,8 @@ struct RacingMPCConfig
   bool verbose;  // print debug
   bool jit;  // use jit compilation
   size_t num_mpc;  // number of mpcs in safety reserve
+  size_t num_cycle_to_switch;  // number of cycles to wait before switching to the next MPC
+  size_t max_extrapolate_horizon;  // maximum number of cycles to extrapolate the solution
   RacingMPCStepMode step_mode = RacingMPCStepMode::STEP;
 
   // MPC settings
