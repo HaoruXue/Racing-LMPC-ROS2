@@ -20,3 +20,18 @@ float64[] control
 
 # solve time
 float64 solve_time 0.0
+
+# reference trajectory
+float64[] reference_trajectory
+
+# reference input
+float64[] reference_input
+
+# bank angle list
+float64[] banks
+
+# curvature list
+float64[] curvatures
+
+# Trajectory Command
+lmpc_msgs/TrajectoryCommand trajectory_cmd
