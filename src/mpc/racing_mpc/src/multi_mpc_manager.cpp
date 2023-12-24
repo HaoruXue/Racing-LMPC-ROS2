@@ -32,9 +32,21 @@ MultiMPCManager::MultiMPCManager(const MultiMPCManagerConfig & config)
   mpcs_(config.mpcs),
   mpc_cycle_count_(mpcs_.size(), 0),
   mpc_futures_(mpcs_.size()),
+  mpc_mutexes_(mpcs_.size()),
   current_mpc_idx_(0),
   buffer_()
 {
+}
+
+MultiMPCManager::~MultiMPCManager()
+{
+  // wait for all MPCs to finish
+  for (size_t i = 0; i < mpcs_.size(); ++i) {
+    std::unique_lock<std::shared_mutex> lock(mpc_mutexes_[i]);
+    if (mpc_futures_[i].valid()) {
+      mpc_futures_[i].wait();
+    }
+  }
 }
 
 MultiMPCSolution MultiMPCManager::initialize(const casadi::DMDict & in, const size_t & timestamp)
@@ -50,6 +62,7 @@ MultiMPCSolution MultiMPCManager::initialize(const casadi::DMDict & in, const si
 
   // solve all MPCs asynchronously
   for (size_t i = 0; i < mpcs_.size(); ++i) {
+    std::unique_lock<std::shared_mutex> lock(mpc_mutexes_[i]);
     mpc_futures_[i] = std::async(std::launch::async, solve_async, i);
   }
 
@@ -93,14 +106,15 @@ MPCSolveScheduleResult MultiMPCManager::solve(
       }
       if (is_mpc_ready(i)) {
         current_mpc_idx_ = i;
-        mpc_cycle_count_[current_mpc_idx_] = 0;
         goto new_solve;
       }
     }
     // this is only reached when no MPC is ready
     return MPCSolveScheduleResult::NOT_SCHEDULED_NO_MPC_READY;
   }
-new_solve: mpc_futures_[current_mpc_idx_] = std::async(
+new_solve: std::unique_lock<std::shared_mutex> lock(mpc_mutexes_[current_mpc_idx_]);
+    mpc_cycle_count_[current_mpc_idx_] = 0;
+    mpc_futures_[current_mpc_idx_] = std::async(
     std::launch::async,
     &MultiMPCManager::solve_mpc_thread,
     this,
@@ -162,8 +176,10 @@ bool MultiMPCManager::is_mpc_ready(const size_t & mpc_idx)
   // an MPC is ready if
   // 1. it has never been solved (so the future is invalid)
   // 2. it has been solved and the future is ready
-  return !mpc_futures_[mpc_idx].valid() ||
+  std::shared_lock<std::shared_mutex> lock(mpc_mutexes_[mpc_idx]);
+  const auto is_ready = !mpc_futures_[mpc_idx].valid() ||
          mpc_futures_[mpc_idx].wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+  return is_ready;
 }
 }  // namespace racing_mpc
 }  // namespace mpc

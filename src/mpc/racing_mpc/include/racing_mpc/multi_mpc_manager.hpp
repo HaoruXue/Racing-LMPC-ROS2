@@ -22,6 +22,8 @@
 #include <functional>
 #include <future>
 #include <atomic>
+#include <shared_mutex>
+#include <mutex>
 #include <casadi/casadi.hpp>
 #include "racing_mpc/racing_mpc_config.hpp"
 #include "lmpc_utils/mpc_solution_buffer.hpp"
@@ -92,6 +94,7 @@ public:
   typedef std::function<void (MultiMPCSolution)> SolutionCallback;
 
   explicit MultiMPCManager(const MultiMPCManagerConfig & config);
+  ~MultiMPCManager();
 
   /**
    * @brief Performs a solve for every MPC in the manager.
@@ -151,6 +154,7 @@ protected:
   std::vector<MultiMPCInterface::SharedPtr> mpcs_;
   std::vector<size_t> mpc_cycle_count_;
   std::vector<std::future<MultiMPCSolution>> mpc_futures_;
+  std::vector<std::shared_mutex> mpc_mutexes_;
   std::atomic_ulong current_mpc_idx_;
   lmpc::utils::MPCSolutionBuffer buffer_;
 

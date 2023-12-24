@@ -13,6 +13,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#include <sstream>
+
 #include <lmpc_utils/ros_param_helper.hpp>
 #include <lmpc_utils/utils.hpp>
 #include <base_vehicle_model/ros_param_loader.hpp>
@@ -20,6 +22,7 @@
 #include "racing_mpc/racing_mpc_node.hpp"
 #include "racing_mpc/ros_param_loader.hpp"
 
+static constexpr double RAD2DEG = 180.0 / M_PI;
 
 namespace lmpc
 {
@@ -93,6 +96,7 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
     "diagnostics", 1);
   ss_vis_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("ss_visualization", 1);
+  ego_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("ego_visualization", 1);
   mpc_telemetry_pub_ = this->create_publisher<lmpc_msgs::msg::MPCTelemetry>("mpc_telemetry", 1);
 
   // initialize the subscribers
@@ -192,7 +196,6 @@ void RacingMPCNode::on_step_timer()
   };
   const Pose2D current_global_pose{{vehicle_state_msg_->x.x, vehicle_state_msg_->x.y},
     vehicle_state_msg_->e.psi};
-  state_msg_lock.unlock();
   FrenetPose2D current_frenet_pose;
   track_->global_to_frenet(current_global_pose, current_frenet_pose);
   x_ic_base(XIndex::PX) = current_frenet_pose.position.s;
@@ -201,6 +204,8 @@ void RacingMPCNode::on_step_timer()
 
   const auto N = static_cast<casadi_int>(config_->N);
   casadi::DMDict sol_in;
+  sol_in["t_ic"] = vehicle_state_msg_->t;
+  state_msg_lock.unlock();
   sol_in["T_ref"] = casadi::DM::zeros(1, N - 1) + dt_;
   sol_in["T_optm_ref"] = sol_in.at("T_ref");
   sol_in["total_length"] = track_->total_length();
@@ -219,8 +224,6 @@ void RacingMPCNode::on_step_timer()
       {"u", u_ic_base}}).at("u_out");
   // current control input
   sol_in["u_ic"] = u_ic;
-  // current time
-  sol_in["t_ic"] = vehicle_state_msg_->t;
 
   // if the mpc has never been solved, pass the initial guess
   std::unique_lock<std::shared_mutex> last_sol_lock(last_sol_mutex_);
@@ -280,6 +283,8 @@ void RacingMPCNode::on_step_timer()
   const auto curvature_ref = track_->curvature_interpolation_function()(abscissa)[0];
   auto vel_ref = track_->velocity_interpolation_function()(abscissa)[0];
   auto bank_angle = track_->bank_interpolation_function()(abscissa)[0];
+  const auto current_bank_angle = static_cast<double>(
+    track_->bank_interpolation_function()(DM(current_frenet_pose.position.s))[0]);
 
   // cap the velocity by the speed limit
   std::shared_lock<std::shared_mutex> speed_limit_lock(speed_limit_mutex_);
@@ -388,6 +393,54 @@ void RacingMPCNode::on_step_timer()
   }
   vehicle_actuation_msg_->u_steer = u_vec[UIndex::STEER];
   vehicle_actuation_pub_->publish(*vehicle_actuation_msg_);
+
+  // publish the ego visualization message
+  auto ego_vis_msg = visualization_msgs::msg::MarkerArray();
+  // the first marker is a box representing the ego vehicle
+  auto & ego_box_marker = ego_vis_msg.markers.emplace_back();
+  ego_box_marker.header.stamp = now;
+  ego_box_marker.header.frame_id = "map";
+  ego_box_marker.ns = "ego";
+  ego_box_marker.id = 0;
+  ego_box_marker.type = visualization_msgs::msg::Marker::CUBE;
+  ego_box_marker.action = visualization_msgs::msg::Marker::MODIFY;
+  ego_box_marker.pose.position.x = current_global_pose.position.x;
+  ego_box_marker.pose.position.y = current_global_pose.position.y;
+  ego_box_marker.pose.position.z = model_->get_base_config().chassis_config->cg_height;
+  ego_box_marker.pose.orientation = tf2::toMsg(
+    utils::TransformHelper::quaternion_from_rpy(current_bank_angle, 0.0, current_global_pose.yaw));
+  ego_box_marker.scale.x = model_->get_base_config().chassis_config->wheel_base;
+  ego_box_marker.scale.y = model_->get_base_config().chassis_config->b;
+  ego_box_marker.scale.z = model_->get_base_config().chassis_config->cg_height * 2.0;
+  ego_box_marker.color.r = 1.0;
+  ego_box_marker.color.g = 1.0;
+  ego_box_marker.color.b = 0.0;
+  ego_box_marker.color.a = 0.5;
+  // the second marking is text showing the speed, throttle, brake, and steering angle
+  auto & ego_text_marker = ego_vis_msg.markers.emplace_back();
+  ego_text_marker.header.stamp = now;
+  ego_text_marker.header.frame_id = "map";
+  ego_text_marker.ns = "ego";
+  ego_text_marker.id = 1;
+  ego_text_marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+  ego_text_marker.action = visualization_msgs::msg::Marker::MODIFY;
+  ego_text_marker.pose.position.x = current_global_pose.position.x;
+  ego_text_marker.pose.position.y = current_global_pose.position.y;
+  ego_text_marker.pose.position.z = model_->get_base_config().chassis_config->cg_height * 2.0 + 1.0;
+  std::stringstream ss;
+  ss << "Vx: " << std::setprecision(2) << std::fixed << static_cast<double>(x_ic_base(XIndex::VX)) << "\n";
+  ss << ((vehicle_actuation_msg_->u_a >= 0.0) ? "Throttle: " : "Brake: ");
+  ss << std::setprecision(2) << std::fixed << std::abs(vehicle_actuation_msg_->u_a) << "\n";
+  ss << "Steer: " << std::setprecision(2) << std::fixed << vehicle_actuation_msg_->u_steer * RAD2DEG;
+  ego_text_marker.text = ss.str();
+  ego_text_marker.color.r = 1.0;
+  ego_text_marker.color.g = 1.0;
+  ego_text_marker.color.b = 0.0;
+  ego_text_marker.color.a = 1.0;
+  ego_text_marker.scale.x = 0.5;
+  ego_text_marker.scale.y = 0.5;
+  ego_text_marker.scale.z = 0.5;
+  ego_pub_->publish(ego_vis_msg);
 }
 
 rcl_interfaces::msg::SetParametersResult RacingMPCNode::on_set_parameters(

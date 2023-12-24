@@ -54,6 +54,8 @@ public:
 
   static double heading_from_quaternion(const geometry_msgs::msg::Quaternion q);
   static double heading_from_quaternion(const tf2::Quaternion q);
+  static tf2::Quaternion quaternion_from_rpy(const double & roll, const double & pitch,
+    const double & yaw);
   static tf2::Quaternion quaternion_from_heading(const double & yaw);
   static void do_transform(
     const Position2D & in, Position2D & out,

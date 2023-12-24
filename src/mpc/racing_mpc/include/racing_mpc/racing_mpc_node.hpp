@@ -92,6 +92,7 @@ protected:
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr mpc_vis_pub_ {};
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr ref_vis_pub_ {};
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr ss_vis_pub_ {};
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr ego_pub_ {};
   rclcpp::Publisher<lmpc_msgs::msg::MPCTelemetry>::SharedPtr mpc_telemetry_pub_ {};
 
   // publishers (to diagnostics)
