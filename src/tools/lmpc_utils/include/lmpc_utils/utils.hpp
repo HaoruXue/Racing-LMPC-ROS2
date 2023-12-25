@@ -120,6 +120,12 @@ casadi::Function euler_function(
   const casadi_int & nx, const casadi_int & nu,
   casadi::Function & dynamics);
 
+template<typename T = casadi::DM>
+bool check_size(const T & x, const casadi_int & rows, const casadi_int & cols = 1)
+{
+  return x.size1() == rows && x.size2() == cols;
+}
+
 enum TyreIndex : size_t
 {
   FL = 0,

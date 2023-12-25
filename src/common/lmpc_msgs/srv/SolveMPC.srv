@@ -1,0 +1,21 @@
+std_msgs/Header header
+
+# Input matrices and their names
+std_msgs/Float64MultiArray[] values_in
+string[] keys_in
+
+# Time budget for the MPC computation
+# 0 means no time budget
+uint64 time_budget_ns
+
+---
+
+# The MPC solution
+std_msgs/Float64MultiArray[] values_out
+string[] keys_out
+
+# The MPC solve time
+uint64 duration_ns
+
+# Solved
+bool solved

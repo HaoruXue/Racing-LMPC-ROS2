@@ -52,6 +52,34 @@ T declare_parameter(rclcpp::Node * node, const char * name)
     throw e;
   }
 }
+
+template<typename T>
+T declare_parameter(rclcpp::Node * node, const char * name, const T & default_value)
+{
+  try {
+    return node->declare_parameter<T>(name, default_value);
+  } catch (rclcpp::exceptions::InvalidParameterValueException & e) {
+    RCLCPP_FATAL(
+      node->get_logger(), "Parameter \"%s\" value does not exsist or is invalid: %s", name,
+      e.what());
+    throw e;
+  } catch (rclcpp::exceptions::InvalidParametersException & e) {
+    RCLCPP_FATAL(
+      node->get_logger(), "Parameter \"%s\" name is invalid: %s", name,
+      e.what());
+    throw e;
+  } catch (rclcpp::exceptions::InvalidParameterTypeException & e) {
+    RCLCPP_FATAL(
+      node->get_logger(), "Parameter \"%s\" type mismatch: %s", name,
+      e.what());
+    throw e;
+  } catch (rclcpp::exceptions::ParameterAlreadyDeclaredException & e) {
+    RCLCPP_FATAL(
+      node->get_logger(), "Parameter \"%s\" is already declared: %s", name,
+      e.what());
+    throw e;
+  }
+}
 }  // namespace utils
 }  // namespace lmpc
 #endif  // LMPC_UTILS__ROS_PARAM_HELPER_HPP_

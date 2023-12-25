@@ -42,6 +42,7 @@ set(${PROJECT_NAME}_SRC
 
 set(${PROJECT_NAME}_HEADER
   include/lmpc_utils/ros_param_helper.hpp
+  include/lmpc_utils/ros_casadi_helper.hpp
   include/lmpc_utils/lookup.hpp
   include/lmpc_utils/utils.hpp
   include/lmpc_utils/logging.hpp
