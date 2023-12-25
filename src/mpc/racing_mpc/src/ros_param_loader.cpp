@@ -67,6 +67,7 @@ RacingMPCConfig::SharedPtr load_parameters(rclcpp::Node * node)
           declare_int("racing_mpc.max_iter"),
           declare_double("racing_mpc.tol"),
           static_cast<size_t>(declare_int("racing_mpc.n")),
+          declare_double("racing_mpc.dt"),
           declare_double("racing_mpc.margin"),
           declare_double("racing_mpc.average_track_width"),
           declare_bool("racing_mpc.verbose"),

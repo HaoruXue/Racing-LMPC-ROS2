@@ -45,6 +45,7 @@ struct RacingMPCConfig
 
   // constraint settings
   size_t N;  // steps
+  double dt;  // time per step (s)
   double margin;  // safety margin to obstacle (m)
   double average_track_width;  // averange track width for scaling the variables
   bool verbose;  // print debug

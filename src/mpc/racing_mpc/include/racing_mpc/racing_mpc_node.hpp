@@ -55,7 +55,6 @@ public:
   explicit RacingMPCNode(const rclcpp::NodeOptions & options);
 
 protected:
-  double dt_;
   RacingMPCConfig::SharedPtr config_ {};
   RacingTrajectoryMap::SharedPtr tracks_ {};
   int traj_idx_ = 0;

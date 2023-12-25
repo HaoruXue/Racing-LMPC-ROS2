@@ -32,7 +32,6 @@ namespace racing_mpc
 {
 RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
 : rclcpp::Node("racing_mpc_node", options),
-  dt_(utils::declare_parameter<double>(this, "racing_mpc_node.dt")),
   config_(lmpc::mpc::racing_mpc::load_parameters(this)),
   tracks_(std::make_shared<RacingTrajectoryMap>(
       utils::declare_parameter<std::string>(
@@ -84,7 +83,7 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   const auto k = track_->curvature_interpolation_function()(x_sym(XIndex::PX))[0];
   const auto bank_angle = track_->bank_interpolation_function()(x_sym(XIndex::PX))[0];
   const auto xip1 = model_->discrete_dynamics()(
-    casadi::MXDict{{"x", x_sym}, {"u", u_sym}, {"k", k}, {"dt", dt_}, {"bank", bank_angle}}
+    casadi::MXDict{{"x", x_sym}, {"u", u_sym}, {"k", k}, {"dt", config_->dt}, {"bank", bank_angle}}
   ).at("xip1");
   discrete_dynamics_ = casadi::Function("discrete_dynamics", {x_sym, u_sym}, {xip1});
 
@@ -130,7 +129,7 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
     step_timer_callback_group_ = this->create_callback_group(
       rclcpp::CallbackGroupType::MutuallyExclusive);
     step_timer_ = this->create_wall_timer(
-      std::chrono::duration<double>(dt_), std::bind(
+      std::chrono::duration<double>(config_->dt), std::bind(
         &RacingMPCNode::on_step_timer,
         this), step_timer_callback_group_);
   }
@@ -206,7 +205,7 @@ void RacingMPCNode::on_step_timer()
   casadi::DMDict sol_in;
   sol_in["t_ic"] = vehicle_state_msg_->t;
   state_msg_lock.unlock();
-  sol_in["T_ref"] = casadi::DM::zeros(1, N - 1) + dt_;
+  sol_in["T_ref"] = casadi::DM::zeros(1, N - 1) + config_->dt;
   sol_in["T_optm_ref"] = sol_in.at("T_ref");
   sol_in["total_length"] = track_->total_length();
 
@@ -526,7 +525,7 @@ void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
     auto diagnostics_msg = diagnostic_msgs::msg::DiagnosticArray();
     diagnostics_msg.status.push_back(
       profiler_->profile().to_diagnostic_status(
-        "Racing MPC Solve Time", "(ms)", dt_ * 1e3));
+        "Racing MPC Solve Time", "(ms)", config_->dt * 1e3));
     diagnostics_msg.status.push_back(
       profiler_iter_count_->profile().to_diagnostic_status(
         "Racing MPC Iteration Count", "Number of Solver Iterations", 50));
@@ -665,7 +664,7 @@ void RacingMPCNode::change_trajectory(const int & traj_idx)
     const auto bank_angle = track_->bank_interpolation_function()(x_sym(XIndex::PX))[0];
 
     const auto xip1 = model_->discrete_dynamics()(
-      casadi::MXDict{{"x", x_sym}, {"u", u_sym}, {"k", k}, {"dt", dt_}, {"bank", bank_angle}}
+      casadi::MXDict{{"x", x_sym}, {"u", u_sym}, {"k", k}, {"dt", config_->dt}, {"bank", bank_angle}}
     ).at("xip1");
     discrete_dynamics_ = casadi::Function("discrete_dynamics", {x_sym, u_sym}, {xip1});
 
