@@ -43,8 +43,8 @@ RacingSimulatorNode::RacingSimulatorNode(const rclcpp::NodeOptions & options)
 
   // build the cg to base_link transform
   const auto & chassis_config = *(model_->get_base_config().chassis_config);
-  const auto & lr = chassis_config.wheel_base * chassis_config.cg_ratio;
-  const auto & lf = chassis_config.wheel_base - lr;
+  const auto lr = chassis_config.wheel_base * chassis_config.cg_ratio;
+  const auto lf = chassis_config.wheel_base - lr;
   cg_to_baselink_.setOrigin(tf2::Vector3(-1.0 * lr, 0.0, 0.0));
   cg_to_baselink_.setRotation(utils::TransformHelper::quaternion_from_heading(0.0));
 

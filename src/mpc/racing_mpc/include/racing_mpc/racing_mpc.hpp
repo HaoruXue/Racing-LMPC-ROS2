@@ -95,7 +95,7 @@ protected:
 
   // flag if the nlp has been solved at least once
   bool solved_;
-  std::shared_ptr<casadi::OptiSol> sol_;
+  std::unique_ptr<casadi::OptiSol> sol_;
 
   // LMPC
   SafeSetManager::UniquePtr ss_manager_;

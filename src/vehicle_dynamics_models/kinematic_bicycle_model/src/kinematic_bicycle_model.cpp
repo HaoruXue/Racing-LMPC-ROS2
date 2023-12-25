@@ -49,16 +49,16 @@ size_t KinematicBicycleModel::nu() const
 void KinematicBicycleModel::add_nlp_constraints(casadi::Opti & opti, const casadi::MXDict & in)
 {
   const auto & u = in.at("u");
-  const auto & fd = u(UIndex::FD);
-  const auto & fb = u(UIndex::FB);
-  const auto & delta = u(UIndex::STEER);
+  const auto fd = u(UIndex::FD);
+  const auto fb = u(UIndex::FB);
+  const auto delta = u(UIndex::STEER);
   const auto & t = in.at("t");
   const auto & Fd_max = get_config().Fd_max;
   const auto & Fb_max = get_config().Fb_max;
   const auto & delta_max = get_base_config().steer_config->max_steer;
   const auto & Td = get_config().Td;
   const auto & Tb = get_config().Tb;
-  const auto & Tdelta = get_base_config().steer_config->max_steer /
+  const auto Tdelta = get_base_config().steer_config->max_steer /
     get_base_config().steer_config->max_steer_rate;
 
   if (in.count("x")) {
@@ -120,7 +120,7 @@ void KinematicBicycleModel::calc_lon_control(
   const casadi::DMDict & in, double & throttle,
   double & brake_kpa) const
 {
-  const auto & u = in.at("u").get_elements();
+  const auto u = in.at("u").get_elements();
   const auto & fd = u[UIndex::FD];
   const auto & fb = u[UIndex::FB];
   throttle = 0.0;
@@ -136,7 +136,7 @@ void KinematicBicycleModel::calc_lat_control(
   const casadi::DMDict & in,
   double & steering_rad) const
 {
-  const auto & u = in.at("u").get_elements();
+  const auto u = in.at("u").get_elements();
   steering_rad = u[UIndex::STEER];
 }
 
@@ -149,20 +149,20 @@ void KinematicBicycleModel::compile_dynamics()
   const auto k = SX::sym("k", 1);  // curvature for frenet frame
   const auto dt = SX::sym("dt", 1);  // time step
 
-  const auto & px = x(XIndex::PX);
-  const auto & py = x(XIndex::PY);
-  const auto & phi = x(XIndex::YAW);  // yaw
-  const auto & v = x(XIndex::V);  // body frame velocity magnitude
-  const auto & fd = u(UIndex::FD);  // drive force
-  const auto & fb = u(UIndex::FB);  // brake forcce
-  const auto & delta = u(UIndex::STEER);  // front wheel angle
+  const auto px = x(XIndex::PX);
+  const auto py = x(XIndex::PY);
+  const auto phi = x(XIndex::YAW);  // yaw
+  const auto v = x(XIndex::V);  // body frame velocity magnitude
+  const auto fd = u(UIndex::FD);  // drive force
+  const auto fb = u(UIndex::FB);  // brake forcce
+  const auto delta = u(UIndex::STEER);  // front wheel angle
   const auto v_sq = v * v;
 
   const auto & kd_f = get_base_config().powertrain_config->kd;
   const auto & kb_f = get_base_config().front_brake_config->bias;  // front brake force bias
   const auto & m = get_base_config().chassis_config->total_mass;  // mass of car
   const auto & l = get_base_config().chassis_config->wheel_base;  // wheelbase
-  const auto & lr = get_base_config().chassis_config->cg_ratio * l;  // cg to front axle
+  const auto lr = get_base_config().chassis_config->cg_ratio * l;  // cg to front axle
   const auto lf = l - lr;  // cg to rear axle
   const auto & fr = get_base_config().chassis_config->fr;  // rolling resistance coefficient
   const auto & hcog = get_base_config().chassis_config->cg_height;  // center of gravity height

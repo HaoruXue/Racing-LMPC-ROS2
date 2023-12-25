@@ -140,7 +140,7 @@ void DoubleTrackPlanarModel::calc_lon_control(
   const casadi::DMDict & in, double & throttle,
   double & brake_kpa) const
 {
-  const auto & u = in.at("u").get_elements();
+  const auto u = in.at("u").get_elements();
   const auto & fd = u[UIndex::FD];
   const auto & fb = u[UIndex::FB];
   throttle = 0.0;
@@ -156,7 +156,7 @@ void DoubleTrackPlanarModel::calc_lat_control(
   const casadi::DMDict & in,
   double & steering_rad) const
 {
-  const auto & u = in.at("u").get_elements();
+  const auto u = in.at("u").get_elements();
   steering_rad = u[UIndex::STEER];
 }
 
@@ -170,22 +170,22 @@ void DoubleTrackPlanarModel::compile_dynamics()
   const auto k = SX::sym("k", 1);  // curvature for frenet frame
   const auto dt = SX::sym("dt", 1);  // time step
 
-  const auto & py = x(XIndex::PY);
-  const auto & phi = x(XIndex::YAW);  // yaw
-  const auto & omega = x(XIndex::VYAW);  // yaw rate
-  const auto & beta = x(XIndex::SLIP);  // slip angle
-  const auto & v = x(XIndex::V);  // velocity magnitude
-  const auto & fd = u(UIndex::FD);  // drive force
-  const auto & fb = u(UIndex::FB);  // brake forcce
-  const auto & delta = u(UIndex::STEER);  // front wheel angle
-  const auto & v_sq = pow(v, 2);
+  const auto py = x(XIndex::PY);
+  const auto phi = x(XIndex::YAW);  // yaw
+  const auto omega = x(XIndex::VYAW);  // yaw rate
+  const auto beta = x(XIndex::SLIP);  // slip angle
+  const auto v = x(XIndex::V);  // velocity magnitude
+  const auto fd = u(UIndex::FD);  // drive force
+  const auto fb = u(UIndex::FB);  // brake forcce
+  const auto delta = u(UIndex::STEER);  // front wheel angle
+  const auto v_sq = pow(v, 2);
 
   const auto & kd_f = get_base_config().powertrain_config->kd;
   const auto & kb_f = get_base_config().front_brake_config->bias;  // front brake force bias
   const auto & m = get_base_config().chassis_config->total_mass;  // mass of car
   const auto & Jzz = get_base_config().chassis_config->moi;  // MOI around z axis
   const auto & l = get_base_config().chassis_config->wheel_base;  // wheelbase
-  const auto & lr = get_base_config().chassis_config->cg_ratio * l;  // cg to front axle
+  const auto lr = get_base_config().chassis_config->cg_ratio * l;  // cg to front axle
   const auto lf = l - lr;  // cg to rear axle
   const auto & twf = get_base_config().chassis_config->tw_f;  // front track width
   const auto & twr = get_base_config().chassis_config->tw_r;  // rear track width

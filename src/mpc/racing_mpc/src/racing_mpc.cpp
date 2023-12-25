@@ -52,7 +52,7 @@ RacingMPC::RacingMPC(
   curvatures_(opti_.parameter(1, config_->N)),
   vel_ref_(opti_.parameter(1, config_->N)),
   solved_(false),
-  sol_(),
+  sol_(nullptr),
   ss_manager_(std::make_unique<SafeSetManager>(config_->max_lap_stored)),
   ss_recorder_(std::make_unique<SafeSetRecorder>(
       *ss_manager_, config_->record,
@@ -347,7 +347,7 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
 
   // solve problem
   try {
-    sol_ = std::make_shared<casadi::OptiSol>(opti_.solve_limited());
+    sol_ = std::make_unique<casadi::OptiSol>(opti_.solve_limited());
     // const auto sol = opti.solve();
     solved_ = true;
     out["X_optm"] = sol_->value(X_) * scale_x_;

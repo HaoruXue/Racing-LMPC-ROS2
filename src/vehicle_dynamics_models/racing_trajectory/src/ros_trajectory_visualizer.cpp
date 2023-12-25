@@ -49,13 +49,13 @@ void ROSTrajectoryVisualizer::change_trajectory(RacingTrajectory & trajectory)
   left_boundary_polygon_msg_->header.frame_id = "map";
   right_boundary_polygon_msg_ = std::make_shared<PolygonStamped>();
   right_boundary_polygon_msg_->header.frame_id = "map";
-  const auto & left_boundary_frenet = casadi::DM::horzcat(
+  const auto left_boundary_frenet = casadi::DM::horzcat(
         {
           abscissa,
           trajectory.left_boundary_interpolation_function()(abscissa)[0],
           casadi::DM::zeros(N)
         }).T();
-  const auto & right_boundary_frenet = casadi::DM::horzcat(
+  const auto right_boundary_frenet = casadi::DM::horzcat(
         {
           abscissa,
           trajectory.right_boundary_interpolation_function()(abscissa)[0],
