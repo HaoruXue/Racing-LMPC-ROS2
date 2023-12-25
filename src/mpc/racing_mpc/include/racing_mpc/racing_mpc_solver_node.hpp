@@ -43,27 +43,27 @@ using lmpc_msgs::srv::SolveMPC;
 class RacingMPCSolverNode : public rclcpp::Node
 {
 public:
-    explicit RacingMPCSolverNode(const rclcpp::NodeOptions & options);
+  explicit RacingMPCSolverNode(const rclcpp::NodeOptions & options);
 
 protected:
-    // mpc solve service
-    rclcpp::Service<SolveMPC>::SharedPtr solve_mpc_srv_;
-    // mpc solver
-    RacingMPC::UniquePtr mpc_ {};
-    // profilers
-    lmpc::utils::CycleProfiler<double>::UniquePtr profiler_ {};
-    lmpc::utils::CycleProfiler<double>::UniquePtr profiler_iter_count_ {};
+  // mpc solve service
+  rclcpp::Service<SolveMPC>::SharedPtr solve_mpc_srv_;
+  // mpc solver
+  RacingMPC::UniquePtr mpc_ {};
+  // profilers
+  lmpc::utils::CycleProfiler<double>::UniquePtr profiler_ {};
+  lmpc::utils::CycleProfiler<double>::UniquePtr profiler_iter_count_ {};
 
-    // service callback
-    void solve_mpc_callback(
-        SolveMPC::Request::ConstSharedPtr request,
-        SolveMPC::Response::SharedPtr response);
-    
-    // diagnostic publisher
-    rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub_;
+  // service callback
+  void solve_mpc_callback(
+    SolveMPC::Request::ConstSharedPtr request,
+    SolveMPC::Response::SharedPtr response);
 
-    // name
-    std::string name_;
+  // diagnostic publisher
+  rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub_;
+
+  // name
+  std::string name_;
 };
 }  // namespace racing_mpc
 }  // namespace mpc

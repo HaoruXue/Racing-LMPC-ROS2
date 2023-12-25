@@ -31,10 +31,13 @@ ament_auto_find_build_dependencies(REQUIRED
   ${${PROJECT_NAME}_BUILDTOOL_DEPENDS}
 )
 
+# all *_impl.cpp files, which contain the main function to spin the ros nodes, 
+# should be excluded from the library.
 set(${PROJECT_NAME}_SRC
   src/racing_mpc.cpp
   src/ros_param_loader.cpp
   src/racing_mpc_node.cpp
+  src/racing_mpc_solver_node.cpp
   src/multi_mpc_manager.cpp
 )
 
@@ -43,6 +46,7 @@ set(${PROJECT_NAME}_HEADER
   include/racing_mpc/racing_mpc_config.hpp
   include/racing_mpc/ros_param_loader.hpp
   include/racing_mpc/racing_mpc_node.hpp
+  include/racing_mpc/racing_mpc_solver_node.hpp
   include/racing_mpc/multi_mpc_manager.hpp
 )
 
@@ -54,7 +58,11 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
 target_link_libraries(${PROJECT_NAME} casadi)
 
 ament_auto_add_executable(${PROJECT_NAME}_node_exe
-  ${${PROJECT_NAME}_SRC}
+  src/racing_mpc_node_impl.cpp
+)
+
+ament_auto_add_executable(${PROJECT_NAME}_solver_node_exe
+  src/racing_mpc_solver_node_impl.cpp
 )
 
 if(BUILD_TESTING)
