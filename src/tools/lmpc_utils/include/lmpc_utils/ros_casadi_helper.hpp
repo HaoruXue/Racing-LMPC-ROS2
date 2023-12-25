@@ -26,35 +26,34 @@ namespace utils
 {
 casadi::DM ros_array_to_dm(const std_msgs::msg::Float64MultiArray & array)
 {
-    // check if the array is 1D
-    if (array.layout.dim.size() == 1)
-    {
-        return casadi::DM(array.data);
-    } else if (array.layout.dim.size() == 2) {
-        return casadi::DM::reshape(casadi::DM(array.data), array.layout.dim[0].size,
-            array.layout.dim[1].size);
-    } else {
-        throw std::runtime_error("Cannot convert array with more than 2 dimensions to casadi::DM");
-    }
+  // check if the array is 1D
+  if (array.layout.dim.size() == 1) {
+    return casadi::DM(array.data);
+  } else if (array.layout.dim.size() == 2) {
+    return casadi::DM::reshape(
+      casadi::DM(array.data), array.layout.dim[0].size,
+      array.layout.dim[1].size);
+  } else {
+    throw std::runtime_error("Cannot convert array with more than 2 dimensions to casadi::DM");
+  }
 }
 
 std_msgs::msg::Float64MultiArray dm_to_ros_array(const casadi::DM & array)
 {
-    // for 1D array, only one dimension is needed
-    std_msgs::msg::Float64MultiArray ros_array;
+  // for 1D array, only one dimension is needed
+  std_msgs::msg::Float64MultiArray ros_array;
+  ros_array.layout.dim.push_back(std_msgs::msg::MultiArrayDimension());
+  ros_array.layout.dim[0].size = array.size1();
+  ros_array.layout.dim[0].stride = array.size1() * array.size2();
+  ros_array.layout.dim[0].label = "rows";
+  ros_array.data = array.get_elements();
+  if (array.size2() > 1) {
     ros_array.layout.dim.push_back(std_msgs::msg::MultiArrayDimension());
-    ros_array.layout.dim[0].size = array.size1();
-    ros_array.layout.dim[0].stride = array.size1() * array.size2();
-    ros_array.layout.dim[0].label = "rows";
-    ros_array.data = array.get_elements();
-    if (array.size2() > 1)
-    {
-        ros_array.layout.dim.push_back(std_msgs::msg::MultiArrayDimension());
-        ros_array.layout.dim[1].size = array.size2();
-        ros_array.layout.dim[1].stride = array.size2();
-        ros_array.layout.dim[1].label = "cols";
-    }
-    return ros_array;
+    ros_array.layout.dim[1].size = array.size2();
+    ros_array.layout.dim[1].stride = array.size2();
+    ros_array.layout.dim[1].label = "cols";
+  }
+  return ros_array;
 }
 }  // namespace utils
 }  // namespace lmpc

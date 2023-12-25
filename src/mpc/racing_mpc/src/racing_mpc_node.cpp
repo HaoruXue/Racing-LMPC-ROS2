@@ -664,7 +664,8 @@ void RacingMPCNode::change_trajectory(const int & traj_idx)
     const auto bank_angle = track_->bank_interpolation_function()(x_sym(XIndex::PX))[0];
 
     const auto xip1 = model_->discrete_dynamics()(
-      casadi::MXDict{{"x", x_sym}, {"u", u_sym}, {"k", k}, {"dt", config_->dt}, {"bank", bank_angle}}
+      casadi::MXDict{{"x", x_sym}, {"u", u_sym}, {"k", k}, {"dt", config_->dt},
+        {"bank", bank_angle}}
     ).at("xip1");
     discrete_dynamics_ = casadi::Function("discrete_dynamics", {x_sym, u_sym}, {xip1});
 
