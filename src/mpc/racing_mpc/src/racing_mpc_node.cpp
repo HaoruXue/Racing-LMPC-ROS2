@@ -428,10 +428,12 @@ void RacingMPCNode::on_step_timer()
   ego_text_marker.pose.position.y = current_global_pose.position.y;
   ego_text_marker.pose.position.z = model_->get_base_config().chassis_config->cg_height * 2.0 + 1.0;
   std::stringstream ss;
-  ss << "Vx: " << std::setprecision(2) << std::fixed << static_cast<double>(x_ic_base(XIndex::VX)) << "\n";
+  ss << "Vx: " << std::setprecision(2) << std::fixed <<
+    static_cast<double>(x_ic_base(XIndex::VX)) << "\n";
   ss << ((vehicle_actuation_msg_->u_a >= 0.0) ? "Throttle: " : "Brake: ");
   ss << std::setprecision(2) << std::fixed << std::abs(vehicle_actuation_msg_->u_a) << "\n";
-  ss << "Steer: " << std::setprecision(2) << std::fixed << vehicle_actuation_msg_->u_steer * RAD2DEG;
+  ss << "Steer: " << std::setprecision(2) << std::fixed <<
+    vehicle_actuation_msg_->u_steer * RAD2DEG;
   ego_text_marker.text = ss.str();
   ego_text_marker.color.r = 1.0;
   ego_text_marker.color.g = 1.0;

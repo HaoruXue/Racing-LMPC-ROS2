@@ -89,8 +89,9 @@ double TransformHelper::heading_from_quaternion(const tf2::Quaternion q)
   return yaw;
 }
 
-tf2::Quaternion TransformHelper::quaternion_from_rpy(const double & roll, const double & pitch,
-    const double & yaw)
+tf2::Quaternion TransformHelper::quaternion_from_rpy(
+  const double & roll, const double & pitch,
+  const double & yaw)
 {
   auto q = tf2::Quaternion();
   q.setRPY(roll, pitch, yaw);

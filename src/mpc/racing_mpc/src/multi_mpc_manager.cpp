@@ -113,8 +113,8 @@ MPCSolveScheduleResult MultiMPCManager::solve(
     return MPCSolveScheduleResult::NOT_SCHEDULED_NO_MPC_READY;
   }
 new_solve: std::unique_lock<std::shared_mutex> lock(mpc_mutexes_[current_mpc_idx_]);
-    mpc_cycle_count_[current_mpc_idx_] = 0;
-    mpc_futures_[current_mpc_idx_] = std::async(
+  mpc_cycle_count_[current_mpc_idx_] = 0;
+  mpc_futures_[current_mpc_idx_] = std::async(
     std::launch::async,
     &MultiMPCManager::solve_mpc_thread,
     this,
@@ -178,7 +178,7 @@ bool MultiMPCManager::is_mpc_ready(const size_t & mpc_idx)
   // 2. it has been solved and the future is ready
   std::shared_lock<std::shared_mutex> lock(mpc_mutexes_[mpc_idx]);
   const auto is_ready = !mpc_futures_[mpc_idx].valid() ||
-         mpc_futures_[mpc_idx].wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+    mpc_futures_[mpc_idx].wait_for(std::chrono::seconds(0)) == std::future_status::ready;
   return is_ready;
 }
 }  // namespace racing_mpc
