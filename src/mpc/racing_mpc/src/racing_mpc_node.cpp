@@ -46,8 +46,6 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   model_(vehicle_model::vehicle_model_factory::load_vehicle_model(
       utils::declare_parameter<std::string>(
         this, "racing_mpc_node.vehicle_model_name"), this)),
-  profiler_(std::make_unique<lmpc::utils::CycleProfiler<double>>(10)),
-  profiler_iter_count_(std::make_unique<lmpc::utils::CycleProfiler<double>>(10)),
   speed_scale_(utils::declare_parameter<double>(this, "racing_mpc_node.velocity_profile_scale")),
   f2g_(track_->frenet_to_global_function().map(config_->N)),
   to_base_control_(model_->to_base_control().map(config_->N - 1))
@@ -92,8 +90,6 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
     "vehicle_actuation", 1);
   mpc_vis_pub_ = this->create_publisher<nav_msgs::msg::Path>("mpc_visualization", 1);
   ref_vis_pub_ = this->create_publisher<nav_msgs::msg::Path>("ref_visualization", 1);
-  diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
-    "diagnostics", 1);
   ss_vis_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("ss_visualization", 1);
   ego_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("ego_visualization", 1);
   mpc_telemetry_pub_ = this->create_publisher<lmpc_msgs::msg::MPCTelemetry>("mpc_telemetry", 1);
@@ -478,7 +474,6 @@ void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
 {
   using casadi::DM;
   using casadi::Slice;
-  static size_t profile_step_count = 0;
   std::unique_lock<std::shared_mutex> traj_lock(traj_mutex_);
   std::unique_lock<std::shared_mutex> last_sol_lock(last_sol_mutex_);
 
@@ -514,25 +509,8 @@ void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
   traj_lock.unlock();
 
   const auto mpc_solve_duration_ms = solution.solve_time_nanosec / 1e6;
-  profiler_->add_cycle_stats(mpc_solve_duration_ms);
   telemetry_msg.solve_time = mpc_solve_duration_ms;
-  if (stats.count("iter_count")) {
-    profiler_iter_count_->add_cycle_stats(static_cast<double>(stats.at("iter_count")));
-  }
   const auto now = this->now();
-  profile_step_count++;
-  if (profile_step_count == profiler_->capacity()) {
-    auto diagnostics_msg = diagnostic_msgs::msg::DiagnosticArray();
-    diagnostics_msg.status.push_back(
-      profiler_->profile().to_diagnostic_status(
-        "Racing MPC Solve Time", "(ms)", config_->dt * 1e3));
-    diagnostics_msg.status.push_back(
-      profiler_iter_count_->profile().to_diagnostic_status(
-        "Racing MPC Iteration Count", "Number of Solver Iterations", 50));
-    diagnostics_msg.header.stamp = now;
-    diagnostics_pub_->publish(diagnostics_msg);
-    profile_step_count = 0;
-  }
 
   // publish the visualization message
   auto mpc_vis_msg = nav_msgs::msg::Path();

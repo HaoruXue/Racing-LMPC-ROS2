@@ -68,8 +68,8 @@ void RacingMPCSolverNode::solve_mpc_callback(
   auto stats = casadi::Dict{};
   auto t0 = std::chrono::high_resolution_clock::now();
   mpc_->solve(sol_in, sol_out, stats);
-  response->solved = mpc_->is_solve_success(sol_out, stats);
-  if (response->solved) {
+  const bool & solved = mpc_->is_solve_success(sol_out, stats);
+  if (solved) {
     // Pack the solution into the response
     response->keys_out.reserve(sol_out.size());
     response->values_out.reserve(sol_out.size());
@@ -84,6 +84,7 @@ void RacingMPCSolverNode::solve_mpc_callback(
   }
   response->duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
     std::chrono::high_resolution_clock::now() - t0).count();
+  response->outdated = response->duration_ns > request->time_budget_ns;
 
   // Profiler
   const auto duration_ms = response->duration_ns / 1e6;

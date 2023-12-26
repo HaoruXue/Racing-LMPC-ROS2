@@ -24,7 +24,6 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/path.hpp>
-#include <diagnostic_msgs/msg/diagnostic_array.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
 #include <mpclab_msgs/msg/vehicle_state_msg.hpp>
@@ -34,7 +33,6 @@
 #include <lmpc_transform_helper/lmpc_transform_helper.hpp>
 #include <racing_trajectory/racing_trajectory_map.hpp>
 #include <racing_trajectory/ros_trajectory_visualizer.hpp>
-#include <lmpc_utils/cycle_profiler.hpp>
 
 #include "racing_mpc/racing_mpc_config.hpp"
 #include "racing_mpc/racing_mpc.hpp"
@@ -64,8 +62,6 @@ protected:
   BaseVehicleModel::SharedPtr model_ {};
   MultiMPCManager::UniquePtr mpc_manager_ {};
   RacingMPC::SharedPtr mpc_full_ {};  // used to compute initial guess
-  lmpc::utils::CycleProfiler<double>::UniquePtr profiler_ {};
-  lmpc::utils::CycleProfiler<double>::UniquePtr profiler_iter_count_ {};
   double speed_limit_ = config_->x_max(XIndex::VX).get_elements()[0];
   double speed_scale_ = 1.0;
 
@@ -93,9 +89,6 @@ protected:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr ss_vis_pub_ {};
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr ego_pub_ {};
   rclcpp::Publisher<lmpc_msgs::msg::MPCTelemetry>::SharedPtr mpc_telemetry_pub_ {};
-
-  // publishers (to diagnostics)
-  rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub_ {};
 
   // subscribers (from world/simulator)
   rclcpp::Subscription<mpclab_msgs::msg::VehicleStateMsg>::SharedPtr vehicle_state_sub_ {};

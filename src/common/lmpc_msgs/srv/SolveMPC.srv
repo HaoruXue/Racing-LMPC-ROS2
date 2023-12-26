@@ -19,3 +19,4 @@ uint64 duration_ns
 
 # Solved
 bool solved
+bool outdated
