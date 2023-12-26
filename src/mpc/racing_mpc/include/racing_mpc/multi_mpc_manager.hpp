@@ -54,6 +54,13 @@ struct MultiMPCSolution
 
 using SolutionCallback = std::function<void (MultiMPCSolution)>;
 
+/**
+ * @brief An interface for a MPC solver to be
+ * managable by the MultiMPCManager.
+ * Remember that casadi matrices are not thread safe,
+ * and creating matrices on new threads can cause segfaults.
+ *
+ */
 class MultiMPCInterface
 {
 public:
@@ -61,12 +68,47 @@ public:
   typedef std::unique_ptr<MultiMPCInterface> UniquePtr;
 
   virtual ~MultiMPCInterface() = default;
+
+  /**
+   * @brief Pass the solve request to the solver.
+   * This call should be non-blocking.
+   * Remember that casadi matrices are not thread safe,
+   * and creating matrices on new threads can cause segfaults.
+   * If the solver is casadi-based, you need to condense the
+   * entire solve process into a casadi::Function.
+   * Alternatively, see MPCSolverNodeInterface for a ROS2-based
+   * solution to communicate with a casadi-based solver in a
+   * separate ROS2 node with service calls.
+   * If using other solvers, convert casadi matrices to the
+   * corresponding matrix type (e.g. Eigen) before passing to the solver
+   * on a new thread.
+   *
+   * @param in Solver input
+   * @param timestamp Cycle number corresponding to the solver input.
+   * This should be current cycle number + 1, for example,
+   * if solving for the next cycle.
+   * @param callback Callback function to be called when the solver finishes solving.
+   */
   virtual void solve(
     const casadi::DMDict & in, const size_t & timestamp,
     SolutionCallback callback) = 0;
+
+  /**
+   * @brief If the solver is ready to solve.
+   *
+   * @return true there is no solve in progress
+   * @return false there is a solve in progress
+   */
   virtual bool is_ready() = 0;
 };
 
+/**
+ * @brief This class interfaces MPCSolverNode, which is
+ * a seperate ROS2 node with a service call to solve MPC.
+ * Multiple MPCSolverNodeInterface can be created to
+ * communicate with multiple MPCSolverNodes.
+ *
+ */
 class MPCSolverNodeInterface : public MultiMPCInterface
 {
 public:
@@ -107,6 +149,14 @@ enum class MPCSolveScheduleResult : uint8_t
   NOT_SCHEDULED_NO_MPC_READY
 };
 
+/**
+ * @brief A class for managing multiple MPCs.
+ * Often times, we want to have a backup MPC in case the primary MPC solve stalls.
+ * This class can schedule solve with the next available MPC.
+ * Remember that casadi matrices are not thread safe,
+ * and creating matrices on new threads can cause segfaults.
+ *
+ */
 class MultiMPCManager
 {
 public:
@@ -119,7 +169,6 @@ public:
   /**
    * @brief Performs a solve for every MPC in the manager.
    * This can initialize some solver behavior such as JIT compilation.
-   * This call is blocking untill all MPCs finish solving.
    * It also initializes the solution buffer.
    * The solution of the primary MPC is returned.
    *
@@ -138,8 +187,6 @@ public:
    * If no MPC is ready, the solve will not be scheduled.
    * This call is non-blocking.
    * When a solver finishes solving, the callback function will be called.
-   * The solution buffer will be updated only if the solver is still the primary MPC
-   * after the solve.
    *
    * @param in solver input
    * @param timestamp timestamp of the solver input
