@@ -8,6 +8,13 @@ string[] keys_in
 # 0 means no time budget
 uint64 time_budget_ns
 
+# This is the internal MPC timestamp
+# It is the anticipated cycle time of the solution
+# e.g. If the current cycle is 101,
+# and the solutions are for the next cycle,
+# then the timestamp should be 102
+uint64 timestamp
+
 ---
 
 # The MPC solution

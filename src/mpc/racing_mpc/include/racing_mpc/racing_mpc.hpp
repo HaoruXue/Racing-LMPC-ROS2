@@ -21,7 +21,6 @@
 #include <casadi/casadi.hpp>
 
 #include "racing_mpc/racing_mpc_config.hpp"
-#include "racing_mpc/multi_mpc_manager.hpp"
 #include "vehicle_model_factory/vehicle_model_factory.hpp"
 #include "racing_trajectory/safe_set.hpp"
 
@@ -38,7 +37,7 @@ using lmpc::vehicle_model::base_vehicle_model::UIndex;
 using lmpc::vehicle_model::racing_trajectory::SafeSetManager;
 using lmpc::vehicle_model::racing_trajectory::SafeSetRecorder;
 
-class RacingMPC : public MultiMPCInterface
+class RacingMPC
 {
 public:
   typedef std::shared_ptr<RacingMPC> SharedPtr;
@@ -50,11 +49,7 @@ public:
     const bool & full_dynamics = false);
   const RacingMPCConfig & get_config() const;
 
-  void solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::Dict & stats) override;
-  bool is_solve_success(const casadi::DMDict & out, const casadi::Dict & stats) const override;
-  casadi::DM get_x(const casadi::DMDict & out) const override;
-  casadi::DM get_u(const casadi::DMDict & out) const override;
-
+  void solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::Dict & stats);
   void create_warm_start(const casadi::DMDict & in, casadi::DMDict & out);
 
   BaseVehicleModel & get_model();

@@ -65,6 +65,7 @@ protected:
   lmpc::utils::MPCSolutionBuffer buffer_;
   double speed_limit_ = 0.0;
   double speed_scale_ = 1.0;
+  std::atomic_bool jitted_;
 
   std::shared_mutex state_msg_mutex_;
   std::shared_mutex traj_mutex_;

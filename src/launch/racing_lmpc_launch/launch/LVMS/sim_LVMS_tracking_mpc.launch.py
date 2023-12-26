@@ -92,5 +92,23 @@ def generate_launch_description():
                 # prefix=['taskset -c 22,23'],
                 emulate_tty=True,
             ),
+            Node(
+                package="racing_mpc",
+                executable="racing_mpc_solver_node_exe",
+                name="racing_mpc_solver_node",
+                output="screen",
+                parameters=[
+                    mpc_config,
+                    dt_model_config,
+                    base_model_config,
+                    use_sim_time,
+                    {
+                        "racing_mpc_node.vehicle_model_name": "single_track_planar_model",
+                    },
+                ],
+                remappings=[],
+                # prefix=['taskset -c 22,23'],
+                emulate_tty=True,
+            ),
         ]
     )

@@ -25,6 +25,10 @@
 #include <shared_mutex>
 #include <mutex>
 #include <casadi/casadi.hpp>
+
+#include <rclcpp/rclcpp.hpp>
+#include <lmpc_msgs/srv/solve_mpc.hpp>
+
 #include "racing_mpc/racing_mpc_config.hpp"
 #include "lmpc_utils/mpc_solution_buffer.hpp"
 
@@ -34,6 +38,22 @@ namespace mpc
 {
 namespace racing_mpc
 {
+struct MultiMPCSolution
+{
+  typedef std::shared_ptr<MultiMPCSolution> SharedPtr;
+  typedef std::unique_ptr<MultiMPCSolution> UniquePtr;
+
+  casadi::DMDict in;
+  casadi::DMDict solution;
+  size_t timestamp;
+  std::string mpc_name;
+  size_t solve_time_nanosec;
+  bool success;
+  bool outdated;
+};
+
+using SolutionCallback = std::function<void (MultiMPCSolution)>;
+
 class MultiMPCInterface
 {
 public:
@@ -41,10 +61,33 @@ public:
   typedef std::unique_ptr<MultiMPCInterface> UniquePtr;
 
   virtual ~MultiMPCInterface() = default;
-  virtual void solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::Dict & stats) = 0;
-  virtual bool is_solve_success(const casadi::DMDict & out, const casadi::Dict & stats) const = 0;
-  virtual casadi::DM get_x(const casadi::DMDict & out) const = 0;
-  virtual casadi::DM get_u(const casadi::DMDict & out) const = 0;
+  virtual void solve(
+    const casadi::DMDict & in, const size_t & timestamp,
+    SolutionCallback callback) = 0;
+  virtual bool is_ready() = 0;
+};
+
+class MPCSolverNodeInterface : public MultiMPCInterface
+{
+public:
+  typedef std::shared_ptr<MPCSolverNodeInterface> SharedPtr;
+  typedef std::unique_ptr<MPCSolverNodeInterface> UniquePtr;
+  using Client = rclcpp::Client<lmpc_msgs::srv::SolveMPC>;
+  MPCSolverNodeInterface(rclcpp::Node * node, const std::string & name);
+
+  // MultiMPCInterface overrides
+  void solve(
+    const casadi::DMDict & in, const size_t & timestamp,
+    SolutionCallback callback) override;
+  bool is_ready() override;
+
+private:
+  rclcpp::Node * node_;
+  rclcpp::Client<lmpc_msgs::srv::SolveMPC>::SharedPtr client_;
+  std::string name_;
+  std::atomic_bool is_ready_;
+
+  void service_callback(Client::SharedFutureWithRequest cb, SolutionCallback callback);
 };
 
 struct MultiMPCManagerConfig
@@ -64,28 +107,6 @@ enum class MPCSolveScheduleResult : uint8_t
   NOT_SCHEDULED_NO_MPC_READY
 };
 
-enum class MultiMPCSolveResult : uint8_t
-{
-  SUCCESS,
-  SUCCESS_OUTDATED,
-  FAILURE,
-  FAILURE_OUTDATED
-};
-
-struct MultiMPCSolution
-{
-  typedef std::shared_ptr<MultiMPCSolution> SharedPtr;
-  typedef std::unique_ptr<MultiMPCSolution> UniquePtr;
-
-  casadi::DMDict in;
-  casadi::DMDict solution;
-  casadi::Dict stats;
-  size_t timestamp;
-  std::string mpc_name;
-  size_t solve_time_nanosec;
-  MultiMPCSolveResult result = MultiMPCSolveResult::SUCCESS;
-};
-
 class MultiMPCManager
 {
 public:
@@ -94,7 +115,6 @@ public:
   typedef std::function<void (MultiMPCSolution)> SolutionCallback;
 
   explicit MultiMPCManager(const MultiMPCManagerConfig & config);
-  ~MultiMPCManager();
 
   /**
    * @brief Performs a solve for every MPC in the manager.
@@ -105,9 +125,9 @@ public:
    *
    * @param in solver input
    * @param timestamp timestamp of the solver input
-   * @return MultiMPCSolution solution of the primary MPC
+   * @param callback callback function to be called when the primary MPC finishes solving
    */
-  MultiMPCSolution initialize(const casadi::DMDict & in, const size_t & timestamp);
+  void initialize(const casadi::DMDict & in, const size_t & timestamp, SolutionCallback callback);
 
   /**
    * @brief Schedule a solve for the primary MPC.
@@ -137,16 +157,12 @@ protected:
   size_t num_cycle_to_switch_;
   std::vector<MultiMPCInterface::SharedPtr> mpcs_;
   std::vector<size_t> mpc_cycle_count_;
-  std::vector<std::future<MultiMPCSolution>> mpc_futures_;
-  std::vector<std::shared_mutex> mpc_mutexes_;
   std::atomic_ulong current_mpc_idx_;
 
-  MultiMPCSolution solve_mpc_thread(
-    const size_t mpc_idx, const casadi::DMDict in,
-    const size_t timestamp, SolutionCallback callback);
-  bool is_mpc_ready(const size_t & mpc_idx);
+  void solution_callback(MultiMPCSolution solution, size_t mpc_idx, SolutionCallback callback);
 };
 }  // namespace racing_mpc
 }  // namespace mpc
 }  // namespace lmpc
+
 #endif  // RACING_MPC__MULTI_MPC_MANAGER_HPP_

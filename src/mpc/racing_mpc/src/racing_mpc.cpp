@@ -250,37 +250,37 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
   // add current state to safe set
   ss_recorder_->step(x_ic, u_ic, curvatures(0), t_ic, static_cast<double>(total_length));
 
-  // compute new safe set
-  const auto query = lmpc::vehicle_model::racing_trajectory::SSQuery{
-    X_ref(Slice(), -1),
-    1.0,
-    config_->num_ss_pts,
-    config_->num_ss_pts_per_lap
-  };
-  const auto ss_result = ss_manager_->query(query);
-  out["ss_x"] = ss_result.x;
-  out["ss_j"] = ss_result.J;
-  if (ss_result.x.size2() == 0) {
-    // std::cout << "No safe set found, using previous safe set." << std::endl;
-  } else {
-    auto ss_x = ss_result.x;
-    auto ss_j = ss_result.J;
-    if (ss_x.size2() < config_->num_ss_pts) {
-      // pad with the last ss point
-      ss_x =
-        casadi::DM::horzcat(
-        {ss_x,
-          casadi::DM::repmat(ss_x(Slice(), -1), 1, config_->num_ss_pts - ss_x.size2())});
-      ss_j =
-        casadi::DM::horzcat(
-        {ss_j,
-          casadi::DM::repmat(ss_j(Slice(), -1), 1, config_->num_ss_pts - ss_j.size2())});
-    } else if (ss_x.size2() > config_->num_ss_pts) {
-      // truncate
-      ss_x = ss_x(Slice(), Slice(0, config_->num_ss_pts));
-      ss_j = ss_j(Slice(), Slice(0, config_->num_ss_pts));
-    }
-    if (config_->learning) {
+  if (config_->learning) {
+    // compute new safe set
+    const auto query = lmpc::vehicle_model::racing_trajectory::SSQuery{
+      X_ref(Slice(), -1),
+      1.0,
+      config_->num_ss_pts,
+      config_->num_ss_pts_per_lap
+    };
+    const auto ss_result = ss_manager_->query(query);
+    out["ss_x"] = ss_result.x;
+    out["ss_j"] = ss_result.J;
+    if (ss_result.x.size2() == 0) {
+      // std::cout << "No safe set found, using previous safe set." << std::endl;
+    } else {
+      auto ss_x = ss_result.x;
+      auto ss_j = ss_result.J;
+      if (ss_x.size2() < config_->num_ss_pts) {
+        // pad with the last ss point
+        ss_x =
+          casadi::DM::horzcat(
+          {ss_x,
+            casadi::DM::repmat(ss_x(Slice(), -1), 1, config_->num_ss_pts - ss_x.size2())});
+        ss_j =
+          casadi::DM::horzcat(
+          {ss_j,
+            casadi::DM::repmat(ss_j(Slice(), -1), 1, config_->num_ss_pts - ss_j.size2())});
+      } else if (ss_x.size2() > config_->num_ss_pts) {
+        // truncate
+        ss_x = ss_x(Slice(), Slice(0, config_->num_ss_pts));
+        ss_j = ss_j(Slice(), Slice(0, config_->num_ss_pts));
+      }
       opti_.set_value(ss_, ss_x);
       opti_.set_value(ss_costs_, ss_j - ss_j(Slice(), 0));
       opti_.set_initial(convex_combi_, in.at("convex_combi_optm_ref"));
@@ -375,22 +375,6 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
     // std::cout << "[U_optm]:" << out.at("U_optm") << std::endl;
     // std::cout << "[dU_optm]:" << out.at("dU_optm") << std::endl;
   }
-}
-
-bool RacingMPC::is_solve_success(const casadi::DMDict & out, const casadi::Dict & stats) const
-{
-  (void) stats;
-  return out.count("X_optm");
-}
-
-casadi::DM RacingMPC::get_x(const casadi::DMDict & out) const
-{
-  return out.at("X_optm");
-}
-
-casadi::DM RacingMPC::get_u(const casadi::DMDict & out) const
-{
-  return out.at("U_optm");
 }
 
 void RacingMPC::create_warm_start(const casadi::DMDict & in, casadi::DMDict & out)

@@ -49,6 +49,7 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   buffer_(),
   speed_limit_(config_->x_max(XIndex::VX).get_elements()[0]),
   speed_scale_(utils::declare_parameter<double>(this, "racing_mpc_node.velocity_profile_scale")),
+  jitted_(!config_->jit),
   f2g_(track_->frenet_to_global_function().map(config_->N)),
   to_base_control_(model_->to_base_control().map(config_->N - 1))
 {
@@ -63,11 +64,10 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   mpc_manager_config->num_cycle_to_switch = config_->num_cycle_to_switch;
   mpc_manager_config->max_extrapolate_horizon = config_->max_extrapolate_horizon;
   for (size_t i = 0; i < config_->num_mpc; i++) {
-    auto model =
-      vehicle_model::vehicle_model_factory::copy_vehicle_model(
-      get_parameter(
-        "racing_mpc_node.vehicle_model_name").as_string(), model_);
-    mpc_manager_config->mpcs.push_back(std::make_shared<RacingMPC>(config_, model, false));
+    mpc_manager_config->mpcs.push_back(
+      std::make_shared<MPCSolverNodeInterface>(
+        this,
+        "MPC " + std::to_string(i)));
   }
   mpc_manager_ = std::make_unique<MultiMPCManager>(*mpc_manager_config);
 
@@ -188,6 +188,7 @@ void RacingMPCNode::on_step_timer()
   const auto & p = vehicle_state_msg_->p;
   const auto & v = vehicle_state_msg_->v;
   const auto & w = vehicle_state_msg_->w;
+  const auto current_pose_time = vehicle_state_msg_->header.stamp;
   auto x_ic_base = DM{
     p.s, p.x_tran, p.e_psi, v.v_long, v.v_tran, w.w_psi
   };
@@ -335,18 +336,15 @@ void RacingMPCNode::on_step_timer()
   }
 
   // solve the first time with JIT
-  if (!jitted) {
+  if (!jitted && !jitted_) {
     RCLCPP_INFO(this->get_logger(), "Using the first solve to execute just-in-time compilation.");
-    const auto jit_sol = mpc_manager_->initialize(sol_in, timestamp);
-    if (jit_sol.result == MultiMPCSolveResult::FAILURE) {
-      RCLCPP_FATAL(this->get_logger(), "Failed to solve the first time with JIT.");
-    } else {
-      jitted = true;
-      RCLCPP_INFO(this->get_logger(), "JIT is done. Discarding the first solve...");
-      const auto x = mpc_full_->get_x(jit_sol.solution);
-      const auto u = mpc_full_->get_u(jit_sol.solution);
-      buffer_.set_mpc_solution(x, u, jit_sol.timestamp);
-    }
+    mpc_manager_->initialize(
+      sol_in, timestamp, std::bind(
+        &RacingMPCNode::mpc_solve_callback, this, std::placeholders::_1));
+    jitted = true;
+    return;
+  } else if (jitted && !jitted_) {
+    // still waiting for jit initialization
     return;
   }
 
@@ -356,7 +354,7 @@ void RacingMPCNode::on_step_timer()
     sched_timestamp++;  // in continuous mode, the MPC is solved for the next cycle
   }
   const auto schedule_result = mpc_manager_->solve(
-    sol_in, timestamp,
+    sol_in, sched_timestamp,
     std::bind(&RacingMPCNode::mpc_solve_callback, this, std::placeholders::_1));
   if (schedule_result == MPCSolveScheduleResult::NOT_SCHEDULED_PRIMARY_BUSY) {
     RCLCPP_INFO_THROTTLE(
@@ -370,6 +368,14 @@ void RacingMPCNode::on_step_timer()
     return;
   }
   last_sol_lock.unlock();
+
+  // return if no solution available
+  if (!buffer_.is_initialized()) {
+    RCLCPP_INFO_THROTTLE(
+      this->get_logger(), *this->get_clock(), 1000,
+      "No MPC Solution has been received yet. Skip publishing.");
+    return;
+  }
 
   // get the solution from the buffer
   const auto solution = buffer_.get_mpc_solution(timestamp);
@@ -398,7 +404,7 @@ void RacingMPCNode::on_step_timer()
   auto ego_vis_msg = visualization_msgs::msg::MarkerArray();
   // the first marker is a box representing the ego vehicle
   auto & ego_box_marker = ego_vis_msg.markers.emplace_back();
-  ego_box_marker.header.stamp = now;
+  ego_box_marker.header.stamp = current_pose_time;
   ego_box_marker.header.frame_id = "map";
   ego_box_marker.ns = "ego";
   ego_box_marker.id = 0;
@@ -418,7 +424,7 @@ void RacingMPCNode::on_step_timer()
   ego_box_marker.color.a = 0.5;
   // the second marking is text showing the speed, throttle, brake, and steering angle
   auto & ego_text_marker = ego_vis_msg.markers.emplace_back();
-  ego_text_marker.header.stamp = now;
+  ego_text_marker.header.stamp = current_pose_time;
   ego_text_marker.header.frame_id = "map";
   ego_text_marker.ns = "ego";
   ego_text_marker.id = 1;
@@ -484,9 +490,8 @@ void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
 
   const auto & sol_in = solution.in;
   const auto & sol_out = solution.solution;
-  const auto & stats = solution.stats;
   lmpc_msgs::msg::MPCTelemetry telemetry_msg;
-  if (solution.result == MultiMPCSolveResult::SUCCESS) {
+  if (solution.success && !solution.outdated) {
     last_x_ = sol_out.at("X_optm");
     last_u_ = sol_out.at("U_optm");
     last_du_ = sol_out.at("dU_optm");
@@ -494,9 +499,7 @@ void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
     if (config_->learning) {
       last_convex_combi_ = sol_out.at("convex_combi_optm");
     }
-    const auto x = mpc_full_->get_x(solution.solution);
-    const auto u = mpc_full_->get_u(solution.solution);
-    buffer_.set_mpc_solution(x, u, solution.timestamp);
+    buffer_.set_mpc_solution(last_x_, last_u_, solution.timestamp);
   } else {
     RCLCPP_ERROR_THROTTLE(
       this->get_logger(), *this->get_clock(), 1000,
@@ -595,6 +598,15 @@ void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
   // publish the telemetry message
   telemetry_msg.header.stamp = now;
   mpc_telemetry_pub_->publish(telemetry_msg);
+
+  if (!jitted_) {
+    if (solution.success) {
+      RCLCPP_INFO(this->get_logger(), "JIT is done. Discarding the first solve...");
+      jitted_ = true;
+    } else {
+      RCLCPP_FATAL(this->get_logger(), "Failed to solve the first time with JIT.");
+    }
+  }
 }
 
 void RacingMPCNode::change_trajectory(const int & traj_idx)

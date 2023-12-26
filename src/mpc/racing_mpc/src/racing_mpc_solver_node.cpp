@@ -68,8 +68,8 @@ void RacingMPCSolverNode::solve_mpc_callback(
   auto stats = casadi::Dict{};
   auto t0 = std::chrono::high_resolution_clock::now();
   mpc_->solve(sol_in, sol_out, stats);
-  const bool & solved = mpc_->is_solve_success(sol_out, stats);
-  if (solved) {
+  response->solved = sol_out.count("X_optm");
+  if (response->solved) {
     // Pack the solution into the response
     response->keys_out.reserve(sol_out.size());
     response->values_out.reserve(sol_out.size());

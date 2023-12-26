@@ -38,6 +38,7 @@ set(${PROJECT_NAME}_SRC
   src/utils.cpp
   src/pid_controller.cpp
   src/mpc_solution_buffer.cpp
+  src/ros_casadi_helper.cpp
 )
 
 set(${PROJECT_NAME}_HEADER
