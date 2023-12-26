@@ -33,8 +33,7 @@ MultiMPCManager::MultiMPCManager(const MultiMPCManagerConfig & config)
   mpc_cycle_count_(mpcs_.size(), 0),
   mpc_futures_(mpcs_.size()),
   mpc_mutexes_(mpcs_.size()),
-  current_mpc_idx_(0),
-  buffer_()
+  current_mpc_idx_(0)
 {
 }
 
@@ -76,9 +75,7 @@ MultiMPCSolution MultiMPCManager::initialize(const casadi::DMDict & in, const si
   try {
     solution = mpc_futures_[current_mpc_idx_].get();
     if (mpcs_[current_mpc_idx_]->is_solve_success(solution.solution, solution.stats)) {
-      const auto x = mpcs_[current_mpc_idx_]->get_x(solution.solution);
-      const auto u = mpcs_[current_mpc_idx_]->get_u(solution.solution);
-      buffer_.set_mpc_solution(x, u, timestamp);
+      solution.result = MultiMPCSolveResult::SUCCESS;
     } else {
       solution.result = MultiMPCSolveResult::FAILURE;
     }
@@ -125,16 +122,6 @@ new_solve: std::unique_lock<std::shared_mutex> lock(mpc_mutexes_[current_mpc_idx
   return MPCSolveScheduleResult::SCHEDULED;
 }
 
-lmpc::utils::MPCSolution MultiMPCManager::get_solution(const size_t & timestamp)
-{
-  return buffer_.get_mpc_solution(timestamp);
-}
-
-bool MultiMPCManager::is_solution_initialized() const
-{
-  return buffer_.is_initialized();
-}
-
 MultiMPCSolution MultiMPCManager::solve_mpc_thread(
   const size_t mpc_idx, const casadi::DMDict in,
   const size_t timestamp,
@@ -153,9 +140,6 @@ MultiMPCSolution MultiMPCManager::solve_mpc_thread(
   const auto solve_success = mpcs_[mpc_idx]->is_solve_success(solution.solution, solution.stats);
   if (current_mpc_idx_ == mpc_idx) {
     if (solve_success) {
-      const auto x = mpcs_[mpc_idx]->get_x(solution.solution);
-      const auto u = mpcs_[mpc_idx]->get_u(solution.solution);
-      buffer_.set_mpc_solution(x, u, timestamp);
       solution.result = MultiMPCSolveResult::SUCCESS;
     } else {
       solution.result = MultiMPCSolveResult::FAILURE;

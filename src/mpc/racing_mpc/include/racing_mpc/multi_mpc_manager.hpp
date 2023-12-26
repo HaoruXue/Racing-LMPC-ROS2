@@ -133,22 +133,6 @@ public:
     const casadi::DMDict & in, const size_t & timestamp,
     SolutionCallback callback);
 
-  /**
-   * @brief Get the solution from the solution buffer.
-   *
-   * @param timestamp timestamp of the solution
-   * @return lmpc::utils::MPCSolution solution
-   */
-  lmpc::utils::MPCSolution get_solution(const size_t & timestamp);
-
-  /**
-   * @brief Check if the solution buffer is initialized.
-   *
-   * @return true if the solution buffer is initialized
-   * @return false if the solution buffer is not initialized
-   */
-  bool is_solution_initialized() const;
-
 protected:
   size_t num_cycle_to_switch_;
   std::vector<MultiMPCInterface::SharedPtr> mpcs_;
@@ -156,7 +140,6 @@ protected:
   std::vector<std::future<MultiMPCSolution>> mpc_futures_;
   std::vector<std::shared_mutex> mpc_mutexes_;
   std::atomic_ulong current_mpc_idx_;
-  lmpc::utils::MPCSolutionBuffer buffer_;
 
   MultiMPCSolution solve_mpc_thread(
     const size_t mpc_idx, const casadi::DMDict in,

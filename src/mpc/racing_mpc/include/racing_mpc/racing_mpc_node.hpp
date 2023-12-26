@@ -62,7 +62,8 @@ protected:
   BaseVehicleModel::SharedPtr model_ {};
   MultiMPCManager::UniquePtr mpc_manager_ {};
   RacingMPC::SharedPtr mpc_full_ {};  // used to compute initial guess
-  double speed_limit_ = config_->x_max(XIndex::VX).get_elements()[0];
+  lmpc::utils::MPCSolutionBuffer buffer_;
+  double speed_limit_ = 0.0;
   double speed_scale_ = 1.0;
 
   std::shared_mutex state_msg_mutex_;

@@ -46,6 +46,8 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   model_(vehicle_model::vehicle_model_factory::load_vehicle_model(
       utils::declare_parameter<std::string>(
         this, "racing_mpc_node.vehicle_model_name"), this)),
+  buffer_(),
+  speed_limit_(config_->x_max(XIndex::VX).get_elements()[0]),
   speed_scale_(utils::declare_parameter<double>(this, "racing_mpc_node.velocity_profile_scale")),
   f2g_(track_->frenet_to_global_function().map(config_->N)),
   to_base_control_(model_->to_base_control().map(config_->N - 1))
@@ -341,6 +343,9 @@ void RacingMPCNode::on_step_timer()
     } else {
       jitted = true;
       RCLCPP_INFO(this->get_logger(), "JIT is done. Discarding the first solve...");
+      const auto x = mpc_full_->get_x(jit_sol.solution);
+      const auto u = mpc_full_->get_u(jit_sol.solution);
+      buffer_.set_mpc_solution(x, u, jit_sol.timestamp);
     }
     return;
   }
@@ -367,7 +372,7 @@ void RacingMPCNode::on_step_timer()
   last_sol_lock.unlock();
 
   // get the solution from the buffer
-  const auto solution = mpc_manager_->get_solution(timestamp);
+  const auto solution = buffer_.get_mpc_solution(timestamp);
   using lmpc::utils::MPCSolutionStatus;
   if (solution.status != MPCSolutionStatus::OK) {
     RCLCPP_INFO_THROTTLE(
@@ -486,6 +491,12 @@ void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
     last_u_ = sol_out.at("U_optm");
     last_du_ = sol_out.at("dU_optm");
     telemetry_msg.solved = true;
+    if (config_->learning) {
+      last_convex_combi_ = sol_out.at("convex_combi_optm");
+    }
+    const auto x = mpc_full_->get_x(solution.solution);
+    const auto u = mpc_full_->get_u(solution.solution);
+    buffer_.set_mpc_solution(x, u, solution.timestamp);
   } else {
     RCLCPP_ERROR_THROTTLE(
       this->get_logger(), *this->get_clock(), 1000,
@@ -619,7 +630,7 @@ void RacingMPCNode::change_trajectory(const int & traj_idx)
       state_msg_lock.unlock();
 
       // convert previous solution to new coordinate system
-      if (mpc_manager_->is_solution_initialized()) {
+      if (buffer_.is_initialized()) {
         for (casadi_int i = 0; i < static_cast<casadi_int>(config_->N); i++) {
           const auto xi = last_x_(casadi::Slice(), i).get_elements();
           const FrenetPose2D old_frenet_pose {{xi[XIndex::PX], xi[XIndex::PY]}, xi[XIndex::YAW]};
