@@ -39,9 +39,16 @@ def generate_launch_description():
     sim_track_file = get_share_file("racing_trajectory", "test_data", "LVMS", "20_LVMS_optm.txt")
     track_file_folder = get_share_file("racing_trajectory", "test_data", "LVMS")
 
+    vd_model_name = DeclareLaunchArgument(
+        "vehicle_model_name",
+        default_value="single_track_planar_model",
+        description="vehicle model name",
+    )
+
     return LaunchDescription(
         [
             declare_use_sim_time_cmd,
+            vd_model_name,
             Node(
                 package="racing_simulator",
                 executable="racing_simulator_node_exe",
@@ -81,7 +88,7 @@ def generate_launch_description():
                     base_model_config,
                     use_sim_time,
                     {
-                        "racing_mpc_node.vehicle_model_name": "single_track_planar_model",
+                        "racing_mpc_node.vehicle_model_name": LaunchConfiguration("vehicle_model_name"),
                         "racing_mpc_node.default_traj_idx": 20,
                         "racing_mpc_node.traj_folder": track_file_folder,
                         "racing_mpc_node.velocity_profile_scale": 0.9,
@@ -103,7 +110,7 @@ def generate_launch_description():
                     base_model_config,
                     use_sim_time,
                     {
-                        "racing_mpc_node.vehicle_model_name": "single_track_planar_model",
+                        "racing_mpc_node.vehicle_model_name": LaunchConfiguration("vehicle_model_name"),
                     },
                 ],
                 remappings=[],
