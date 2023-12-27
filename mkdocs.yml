@@ -1,2 +1,6 @@
 site_name: Racing LMPC Documentation
 theme: readthedocs
+nav:
+  - 'Home': 'index.md'
+  - 'Tips':
+    - 'CPU Affinity': 'tips/cpu_affinity.md'
