@@ -220,6 +220,35 @@ void RacingMPCNode::on_step_timer()
     ss_loaded_ = true;
   }
 
+  // don't publish if no solution available
+  const auto now = this->now();
+  if (!buffer_.is_initialized()) {
+    RCLCPP_INFO_THROTTLE(
+      this->get_logger(), *this->get_clock(), 1000,
+      "No MPC Solution has been received yet. Skip publishing.");
+  } else {
+    const auto solution = buffer_.get_mpc_solution(timestamp);
+    using lmpc::utils::MPCSolutionStatus;
+    if (solution.status != MPCSolutionStatus::OK) {
+      RCLCPP_INFO_THROTTLE(
+        this->get_logger(), *this->get_clock(), 1000,
+        "No MPC Solution in the window. Skip publishing.");
+    } else 
+    {
+      // publish the actuation message
+      const auto u_vec = model_->to_base_control()(
+        casadi::DMDict{{"x", solution.x}, {"u", solution.u}}).at("u_out").get_elements();
+      vehicle_actuation_msg_->header.stamp = now;
+      if (abs(u_vec[UIndex::FD]) > abs(u_vec[UIndex::FB])) {
+        vehicle_actuation_msg_->u_a = u_vec[UIndex::FD];
+      } else {
+        vehicle_actuation_msg_->u_a = u_vec[UIndex::FB];
+      }
+      vehicle_actuation_msg_->u_steer = u_vec[UIndex::STEER];
+      vehicle_actuation_pub_->publish(*vehicle_actuation_msg_);
+    }
+  }
+
   // prepare the mpc inputs
   const auto u_ic_base = casadi::DM {
     vehicle_actuation_msg_->u_a > 0.0 ? vehicle_actuation_msg_->u_a : 0.0,
@@ -408,45 +437,12 @@ void RacingMPCNode::on_step_timer()
     RCLCPP_INFO_THROTTLE(
       this->get_logger(), *this->get_clock(), 1000,
       "Primary MPC is busy. Skip solving.");
-    return;
   } else if (schedule_result == MPCSolveScheduleResult::NOT_SCHEDULED_NO_MPC_READY) {
     RCLCPP_INFO_THROTTLE(
       this->get_logger(), *this->get_clock(), 1000,
       "No MPC is ready. Skip solving.");
-    return;
   }
   last_sol_lock.unlock();
-
-  // return if no solution available
-  if (!buffer_.is_initialized()) {
-    RCLCPP_INFO_THROTTLE(
-      this->get_logger(), *this->get_clock(), 1000,
-      "No MPC Solution has been received yet. Skip publishing.");
-    return;
-  }
-
-  // get the solution from the buffer
-  const auto solution = buffer_.get_mpc_solution(timestamp);
-  using lmpc::utils::MPCSolutionStatus;
-  if (solution.status != MPCSolutionStatus::OK) {
-    RCLCPP_INFO_THROTTLE(
-      this->get_logger(), *this->get_clock(), 1000,
-      "No MPC Solution in the window. Skip publishing.");
-    return;
-  }
-
-  const auto now = this->now();
-  // publish the actuation message
-  const auto u_vec = model_->to_base_control()(
-    casadi::DMDict{{"x", solution.x}, {"u", solution.u}}).at("u_out").get_elements();
-  vehicle_actuation_msg_->header.stamp = now;
-  if (abs(u_vec[UIndex::FD]) > abs(u_vec[UIndex::FB])) {
-    vehicle_actuation_msg_->u_a = u_vec[UIndex::FD];
-  } else {
-    vehicle_actuation_msg_->u_a = u_vec[UIndex::FB];
-  }
-  vehicle_actuation_msg_->u_steer = u_vec[UIndex::STEER];
-  vehicle_actuation_pub_->publish(*vehicle_actuation_msg_);
 
   // publish the ego visualization message
   auto ego_vis_msg = visualization_msgs::msg::MarkerArray();
