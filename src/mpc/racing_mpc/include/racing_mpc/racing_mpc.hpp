@@ -22,7 +22,6 @@
 
 #include "racing_mpc/racing_mpc_config.hpp"
 #include "vehicle_model_factory/vehicle_model_factory.hpp"
-#include "racing_trajectory/safe_set.hpp"
 
 namespace lmpc
 {
@@ -34,8 +33,6 @@ using lmpc::vehicle_model::base_vehicle_model::BaseVehicleModelConfig;
 using lmpc::vehicle_model::base_vehicle_model::BaseVehicleModel;
 using lmpc::vehicle_model::base_vehicle_model::XIndex;
 using lmpc::vehicle_model::base_vehicle_model::UIndex;
-using lmpc::vehicle_model::racing_trajectory::SafeSetManager;
-using lmpc::vehicle_model::racing_trajectory::SafeSetRecorder;
 
 class RacingMPC
 {
@@ -91,11 +88,6 @@ protected:
   // flag if the nlp has been solved at least once
   bool solved_;
   std::unique_ptr<casadi::OptiSol> sol_;
-
-  // LMPC
-  SafeSetManager::UniquePtr ss_manager_;
-  SafeSetRecorder::UniquePtr ss_recorder_;
-  bool ss_loaded_ = false;
 
   // nonlinear MPC or convex MPC
   bool full_dynamics_;

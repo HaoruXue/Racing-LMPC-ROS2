@@ -30,9 +30,11 @@
 #include <mpclab_msgs/msg/vehicle_actuation_msg.hpp>
 #include <lmpc_msgs/msg/trajectory_command.hpp>
 #include <lmpc_msgs/msg/mpc_telemetry.hpp>
+
 #include <lmpc_transform_helper/lmpc_transform_helper.hpp>
 #include <racing_trajectory/racing_trajectory_map.hpp>
 #include <racing_trajectory/ros_trajectory_visualizer.hpp>
+#include <racing_trajectory/safe_set.hpp>
 
 #include "racing_mpc/racing_mpc_config.hpp"
 #include "racing_mpc/racing_mpc.hpp"
@@ -47,6 +49,8 @@ namespace racing_mpc
 using lmpc::vehicle_model::racing_trajectory::RacingTrajectoryMap;
 using lmpc::vehicle_model::racing_trajectory::RacingTrajectory;
 using lmpc::vehicle_model::racing_trajectory::ROSTrajectoryVisualizer;
+using lmpc::vehicle_model::racing_trajectory::SafeSetManager;
+using lmpc::vehicle_model::racing_trajectory::SafeSetRecorder;
 class RacingMPCNode : public rclcpp::Node
 {
 public:
@@ -80,6 +84,11 @@ protected:
   casadi::Function f2g_;
   casadi::Function discrete_dynamics_ {};
   casadi::Function to_base_control_ {};
+
+  // LMPC
+  SafeSetManager::UniquePtr ss_manager_;
+  SafeSetRecorder::UniquePtr ss_recorder_;
+  bool ss_loaded_ = false;
 
   mpclab_msgs::msg::VehicleStateMsg::SharedPtr vehicle_state_msg_ {};
   mpclab_msgs::msg::VehicleActuationMsg::SharedPtr vehicle_actuation_msg_ {};

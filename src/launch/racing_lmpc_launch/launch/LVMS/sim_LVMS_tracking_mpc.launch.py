@@ -88,7 +88,9 @@ def generate_launch_description():
                     base_model_config,
                     use_sim_time,
                     {
-                        "racing_mpc_node.vehicle_model_name": LaunchConfiguration("vehicle_model_name"),
+                        "racing_mpc_node.vehicle_model_name": LaunchConfiguration(
+                            "vehicle_model_name"
+                        ),
                         "racing_mpc_node.default_traj_idx": 20,
                         "racing_mpc_node.traj_folder": track_file_folder,
                         "racing_mpc_node.velocity_profile_scale": 0.9,
@@ -110,7 +112,9 @@ def generate_launch_description():
                     base_model_config,
                     use_sim_time,
                     {
-                        "racing_mpc_node.vehicle_model_name": LaunchConfiguration("vehicle_model_name"),
+                        "racing_mpc_node.vehicle_model_name": LaunchConfiguration(
+                            "vehicle_model_name"
+                        ),
                     },
                 ],
                 remappings=[],

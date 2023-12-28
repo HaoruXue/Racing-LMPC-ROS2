@@ -51,7 +51,11 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   speed_scale_(utils::declare_parameter<double>(this, "racing_mpc_node.velocity_profile_scale")),
   jitted_(!config_->jit),
   f2g_(track_->frenet_to_global_function().map(config_->N)),
-  to_base_control_(model_->to_base_control().map(config_->N - 1))
+  to_base_control_(model_->to_base_control().map(config_->N - 1)),
+  ss_manager_(std::make_unique<SafeSetManager>(config_->max_lap_stored)),
+  ss_recorder_(std::make_unique<SafeSetRecorder>(
+      *ss_manager_, config_->record,
+      config_->path_prefix))
 {
   // add a full dynamics MPC solver for the problem initialization
   auto full_config = std::make_shared<RacingMPCConfig>(*config_);
@@ -202,11 +206,19 @@ void RacingMPCNode::on_step_timer()
 
   const auto N = static_cast<casadi_int>(config_->N);
   casadi::DMDict sol_in;
+  casadi::DMDict sol_out;
+  casadi::Dict stats;
   sol_in["t_ic"] = vehicle_state_msg_->t;
   state_msg_lock.unlock();
   sol_in["T_ref"] = casadi::DM::zeros(1, N - 1) + config_->dt;
   sol_in["T_optm_ref"] = sol_in.at("T_ref");
   sol_in["total_length"] = track_->total_length();
+
+  // load safe set
+  if (!ss_loaded_ && config_->load) {
+    ss_recorder_->load(config_->load_path, static_cast<double>(track_->total_length()));
+    ss_loaded_ = true;
+  }
 
   // prepare the mpc inputs
   const auto u_ic_base = casadi::DM {
@@ -274,6 +286,45 @@ void RacingMPCNode::on_step_timer()
     }
   }
 
+  // prepare lmpc inputs
+  if (config_->learning) {
+    // compute new safe set
+    const auto query = lmpc::vehicle_model::racing_trajectory::SSQuery{
+      sol_in["X_ref"](Slice(), -1),
+      1.0,
+      config_->num_ss_pts,
+      config_->num_ss_pts_per_lap
+    };
+    const auto ss_result = ss_manager_->query(query);
+    sol_out["ss_x"] = ss_result.x;
+    sol_out["ss_j"] = ss_result.J;
+    if (ss_result.x.size2() == 0) {
+      // std::cout << "No safe set found, using previous safe set." << std::endl;
+    } else {
+      auto ss_x = ss_result.x;
+      auto ss_j = ss_result.J;
+      if (ss_x.size2() < config_->num_ss_pts) {
+        // pad with the last ss point
+        ss_x =
+          casadi::DM::horzcat(
+          {ss_x,
+            casadi::DM::repmat(ss_x(Slice(), -1), 1, config_->num_ss_pts - ss_x.size2())});
+        ss_j =
+          casadi::DM::horzcat(
+          {ss_j,
+            casadi::DM::repmat(ss_j(Slice(), -1), 1, config_->num_ss_pts - ss_j.size2())});
+      } else if (ss_x.size2() > config_->num_ss_pts) {
+        // truncate
+        ss_x = ss_x(Slice(), Slice(0, config_->num_ss_pts));
+        ss_j = ss_j(Slice(), Slice(0, config_->num_ss_pts));
+      }
+      sol_in["ss_x"] = ss_x;
+      sol_in["ss_j"] = ss_j - ss_j(Slice(), 0);
+    }
+    // std::cout << "[ss_j]:\n" << ss_j << std::endl;
+    // std::cout << "[ss_x]:\n" << ss_x(XIndex::PX, Slice()) << std::endl;
+  }
+
   // prepare the reference trajectory
   const auto abscissa = last_x_(XIndex::PX, Slice());
   const auto left_ref = track_->left_boundary_interpolation_function()(abscissa)[0];
@@ -314,9 +365,6 @@ void RacingMPCNode::on_step_timer()
   sol_in["bank_angle"] = bank_angle;
 
   // solve the mpc
-  auto sol_out = casadi::DMDict{};
-  auto stats = casadi::Dict{};
-
   // solve the first time with full dynamics
   if (!mpc_full_->solved()) {
     RCLCPP_INFO(this->get_logger(), "Get initial solution with full dynamics.");
@@ -449,6 +497,11 @@ void RacingMPCNode::on_step_timer()
   ego_text_marker.scale.y = 0.5;
   ego_text_marker.scale.z = 0.5;
   ego_pub_->publish(ego_vis_msg);
+
+  // add current state to safe set
+  ss_recorder_->step(
+    x_ic, u_ic, curvature_ref(0), sol_in["t_ic"],
+    static_cast<double>(track_->total_length()));
 }
 
 rcl_interfaces::msg::SetParametersResult RacingMPCNode::on_set_parameters(

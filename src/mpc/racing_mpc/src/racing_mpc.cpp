@@ -53,10 +53,6 @@ RacingMPC::RacingMPC(
   vel_ref_(opti_.parameter(1, config_->N)),
   solved_(false),
   sol_(nullptr),
-  ss_manager_(std::make_unique<SafeSetManager>(config_->max_lap_stored)),
-  ss_recorder_(std::make_unique<SafeSetRecorder>(
-      *ss_manager_, config_->record,
-      config_->path_prefix)),
   full_dynamics_(full_dynamics)
 {
   using casadi::MX;
@@ -219,7 +215,7 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
   const auto & total_length = in.at("total_length");
   const auto & x_ic = in.at("x_ic");
   const auto & u_ic = in.at("u_ic");
-  const auto & t_ic = in.at("t_ic");
+  // const auto & t_ic = in.at("t_ic");
   auto X_ref = in.at("X_ref");
   X_ref(XIndex::PX, Slice()) = align_abscissa_(
     casadi::DMDict{{"abscissa_1", X_ref(XIndex::PX, Slice())},
@@ -242,52 +238,13 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
   // std::cout << "[curvatures]\n:" << curvatures << std::endl;
   // std::cout << "[vel_ref]\n:" << vel_ref << std::endl;
 
-  if (!ss_loaded_ && config_->load) {
-    ss_recorder_->load(config_->load_path, static_cast<double>(total_length));
-    ss_loaded_ = true;
-  }
-
-  // add current state to safe set
-  ss_recorder_->step(x_ic, u_ic, curvatures(0), t_ic, static_cast<double>(total_length));
-
   if (config_->learning) {
-    // compute new safe set
-    const auto query = lmpc::vehicle_model::racing_trajectory::SSQuery{
-      X_ref(Slice(), -1),
-      1.0,
-      config_->num_ss_pts,
-      config_->num_ss_pts_per_lap
-    };
-    const auto ss_result = ss_manager_->query(query);
-    out["ss_x"] = ss_result.x;
-    out["ss_j"] = ss_result.J;
-    if (ss_result.x.size2() == 0) {
-      // std::cout << "No safe set found, using previous safe set." << std::endl;
-    } else {
-      auto ss_x = ss_result.x;
-      auto ss_j = ss_result.J;
-      if (ss_x.size2() < config_->num_ss_pts) {
-        // pad with the last ss point
-        ss_x =
-          casadi::DM::horzcat(
-          {ss_x,
-            casadi::DM::repmat(ss_x(Slice(), -1), 1, config_->num_ss_pts - ss_x.size2())});
-        ss_j =
-          casadi::DM::horzcat(
-          {ss_j,
-            casadi::DM::repmat(ss_j(Slice(), -1), 1, config_->num_ss_pts - ss_j.size2())});
-      } else if (ss_x.size2() > config_->num_ss_pts) {
-        // truncate
-        ss_x = ss_x(Slice(), Slice(0, config_->num_ss_pts));
-        ss_j = ss_j(Slice(), Slice(0, config_->num_ss_pts));
-      }
-      opti_.set_value(ss_, ss_x);
-      opti_.set_value(ss_costs_, ss_j - ss_j(Slice(), 0));
-      opti_.set_initial(convex_combi_, in.at("convex_combi_optm_ref"));
-    }
-    // std::cout << "[ss_j]:\n" << ss_j << std::endl;
-    // std::cout << "[ss_x]:\n" << ss_x(XIndex::PX, Slice()) << std::endl;
+    opti_.set_value(ss_, in.at("ss_x"));
+    opti_.set_value(ss_costs_, in.at("ss_j"));
+    opti_.set_initial(convex_combi_, in.at("convex_combi_optm_ref"));
   }
+  // std::cout << "[ss_j]:\n" << ss_j << std::endl;
+  // std::cout << "[ss_x]:\n" << ss_x(XIndex::PX, Slice()) << std::endl;
 
   // set up the offsets
   const auto P0 = X_ref(XIndex::PX, Slice());
