@@ -206,6 +206,11 @@ const RacingMPCConfig & RacingMPC::get_config() const
   return *config_.get();
 }
 
+bool RacingMPC::init()
+{
+  return true;
+}
+
 void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::Dict & stats)
 {
   using casadi::DM;

@@ -20,8 +20,10 @@
 
 #include <casadi/casadi.hpp>
 
+#include <base_mpc/base_mpc.hpp>
+#include <vehicle_model_factory/vehicle_model_factory.hpp>
+
 #include "racing_mpc/racing_mpc_config.hpp"
-#include "vehicle_model_factory/vehicle_model_factory.hpp"
 
 namespace lmpc
 {
@@ -34,7 +36,7 @@ using lmpc::vehicle_model::base_vehicle_model::BaseVehicleModel;
 using lmpc::vehicle_model::base_vehicle_model::XIndex;
 using lmpc::vehicle_model::base_vehicle_model::UIndex;
 
-class RacingMPC
+class RacingMPC : public BaseMPC
 {
 public:
   typedef std::shared_ptr<RacingMPC> SharedPtr;
@@ -46,7 +48,8 @@ public:
     const bool & full_dynamics = false);
   const RacingMPCConfig & get_config() const;
 
-  void solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::Dict & stats);
+  bool init() override;
+  void solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::Dict & stats) override;
   void create_warm_start(const casadi::DMDict & in, casadi::DMDict & out);
 
   BaseVehicleModel & get_model();

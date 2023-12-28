@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>racing_mpc</name>
+  <name>base_mpc</name>
   <version>1.0.0</version>
-  <description>a trajectory tracking MPC</description>
+  <description>Base MPC Interface</description>
   <maintainer email="haorux@andrew.cmu.edu">Haoru Xue</maintainer>
   <license>LGPLv3</license>
 
@@ -15,17 +15,11 @@
 
   <depend>rclcpp</depend>
   <depend>backward_ros</depend>
-  <depend>nav_msgs</depend>
-  <depend>visualization_msgs</depend>
-  <depend>osqp_vendor</depend>
 
   <depend>lmpc_utils</depend>
   <depend>vehicle_model_factory</depend>
   <depend>racing_trajectory</depend>
-  <depend>mpclab_msgs</depend>
-  <depend>lmpc_msgs</depend>
   <depend>lmpc_transform_helper</depend>
-  <depend>base_mpc</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
