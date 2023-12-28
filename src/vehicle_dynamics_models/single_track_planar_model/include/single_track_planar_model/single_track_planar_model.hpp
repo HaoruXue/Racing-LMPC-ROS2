@@ -39,6 +39,7 @@ struct SingleTrackPlanarModelConfig
   double v_max;
   double P_max;
   double mu;
+  double lon_force_scale;
   bool simplify_lon_control;
 };
 

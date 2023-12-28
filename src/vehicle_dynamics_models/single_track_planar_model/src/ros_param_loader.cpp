@@ -45,6 +45,7 @@ SingleTrackPlanarModelConfig::SharedPtr load_parameters(rclcpp::Node * node)
           declare_double("single_track_planar.v_max"),
           declare_double("single_track_planar.p_max"),
           declare_double("single_track_planar.mu"),
+          declare_double("single_track_planar.lon_force_scale"),
           declare_bool("single_track_planar.simplify_lon_control")
         }
   );

@@ -8,4 +8,5 @@
       v_max: 25.0 # max velocity constraint
       p_max: 15000.0 # max engine power
       mu: 1.5 # track - tyre friction coefficient
+      lon_force_scale: 1000.0 # scale the lon control force (1000 for kN)
       simplify_lon_control: true # whether to combine brake and throttle into a single variable

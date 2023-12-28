@@ -9,3 +9,4 @@
       p_max: 270000.0 # max engine power
       kroll_f: 0.5 # front roll moment distribution
       mu: 1.5 # track - tyre friction coefficient
+      lon_force_scale: 1000.0 # scale the lon control force (1000 for kN)
