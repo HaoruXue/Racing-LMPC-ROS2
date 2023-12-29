@@ -111,7 +111,7 @@
   <joint name="model_joint" type="fixed">
     <parent link="base_link" />
     <child link="model" />
-    <origin xyz="1.725 0.0 -0.31" rpy="0 0.0 1.5708" />
+    <origin xyz="1.725 0.0 -0.31" rpy="1.5708 0.0 1.5708" />
   </joint>
 
   <joint name="nav_base_joint" type="fixed">
