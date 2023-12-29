@@ -19,7 +19,7 @@ from launch_ros.actions import Node
 from launch.substitutions import Command, LaunchConfiguration
 from launch.actions import DeclareLaunchArgument
 from launch_ros.parameter_descriptions import ParameterValue
-import os
+
 
 def generate_launch_description():
     urdf_file_name = get_share_file("racing_lmpc_launch", "config", "urdf", "iac_car", "av21.urdf")
@@ -43,7 +43,7 @@ def generate_launch_description():
             use_sim_time,
             {
                 "robot_description": robot_description,
-            }
+            },
         ],
     )
 
@@ -57,7 +57,7 @@ def generate_launch_description():
             {
                 "fl_joint": "fl_tyre_joint",
                 "fr_joint": "fr_tyre_joint",
-            }
+            },
         ],
     )
 
@@ -66,6 +66,6 @@ def generate_launch_description():
             vehicle_name_arg,
             declare_use_sim_time_cmd,
             robot_state_publisher_node,
-            vehicle_state_visualizer_node
+            vehicle_state_visualizer_node,
         ]
     )

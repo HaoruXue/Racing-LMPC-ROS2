@@ -18,9 +18,9 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.substitutions import LaunchConfiguration
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import IfCondition
 from lmpc_utils.lmpc_launch_utils import get_share_file, get_sim_time_launch_arg
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+
 
 def generate_launch_description():
     declare_use_sim_time_cmd, use_sim_time = get_sim_time_launch_arg()

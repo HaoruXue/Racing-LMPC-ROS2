@@ -233,8 +233,7 @@ void RacingMPCNode::on_step_timer()
       RCLCPP_INFO_THROTTLE(
         this->get_logger(), *this->get_clock(), 1000,
         "No MPC Solution in the window. Skip publishing.");
-    } else 
-    {
+    } else {
       // publish the actuation message
       const auto u_vec = model_->to_base_control()(
         casadi::DMDict{{"x", solution.x}, {"u", solution.u}}).at("u_out").get_elements();
