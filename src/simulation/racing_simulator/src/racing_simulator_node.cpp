@@ -292,8 +292,14 @@ void RacingSimulatorNode::on_state_update()
   if (config_->publish_tf) {
     // build the map to cg transform
     tf2::Transform map_to_cg;
-    map_to_cg.setOrigin(tf2::Vector3(global_pose.position.x, global_pose.position.y, 0.0));
-    map_to_cg.setRotation(utils::TransformHelper::quaternion_from_heading(global_pose.yaw));
+    const double roll =
+      static_cast<double>(track_->bank_interpolation_function()(
+        casadi::DM(
+          frenet_pose.
+          position.s))[0]);
+    const double elevation = frenet_pose.position.t * sin(roll);
+    map_to_cg.setOrigin(tf2::Vector3(global_pose.position.x, global_pose.position.y, elevation));
+    map_to_cg.setRotation(utils::TransformHelper::quaternion_from_rpy(roll, 0.0, global_pose.yaw));
     // find the map to baselink transform
     // map_to_baselink_msg_->transform = tf2::toMsg(map_to_cg * cg_to_baselink_);
     map_to_baselink_msg_->transform = tf2::toMsg(map_to_cg);

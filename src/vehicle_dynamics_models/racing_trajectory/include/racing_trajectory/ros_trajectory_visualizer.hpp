@@ -23,6 +23,7 @@
 #include <casadi/casadi.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/polygon_stamped.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 
 #include "racing_trajectory/racing_trajectory.hpp"
 
@@ -34,6 +35,8 @@ namespace racing_trajectory
 {
 using geometry_msgs::msg::Polygon;
 using geometry_msgs::msg::PolygonStamped;
+using visualization_msgs::msg::MarkerArray;
+using visualization_msgs::msg::Marker;
 
 class ROSTrajectoryVisualizer
 {
@@ -54,10 +57,12 @@ private:
   PolygonStamped::SharedPtr left_boundary_polygon_msg_ {};
   PolygonStamped::SharedPtr right_boundary_polygon_msg_ {};
   PolygonStamped::SharedPtr abscissa_polygon_msg_ {};
+  MarkerArray::SharedPtr surface_marker_msg_ {};
 
   rclcpp::Publisher<PolygonStamped>::SharedPtr left_boundary_polygon_pub_;
   rclcpp::Publisher<PolygonStamped>::SharedPtr right_boundary_polygon_pub_;
   rclcpp::Publisher<PolygonStamped>::SharedPtr abscissa_polygon_pub_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
 
   rclcpp::TimerBase::SharedPtr static_vis_timer_;
   rclcpp::CallbackGroup::SharedPtr vis_callback_group_;
@@ -66,7 +71,10 @@ private:
 
   std::shared_mutex mutex_;
 
+  bool visualize_3d_ = true;
+
   Polygon build_polygon(const casadi::DM & pts);
+  Marker build_surface(const casadi::DM & left, const casadi::DM & right);
   void on_static_vis_timer();
 };
 }  // namespace racing_trajectory

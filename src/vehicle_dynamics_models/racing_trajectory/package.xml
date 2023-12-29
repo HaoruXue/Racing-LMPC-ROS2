@@ -16,6 +16,7 @@
   <depend>rclcpp</depend>
   <depend>backward_ros</depend>
   <depend>geometry_msgs</depend>
+  <depend>visualization_msgs</depend>
   <depend>cgal</depend>
   <depend>tbb</depend>
 

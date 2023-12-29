@@ -13,9 +13,6 @@
       <geometry>
         <mesh filename="package://racing_lmpc_launch/config/urdf/iac_car/visual/il15_body.stl" scale="0.01 0.01 0.01" />
       </geometry>
-      <material>
-        <color rgba="1.0 1.0 1.0 0.6" />
-      </material>
     </visual>
   </link>
 
@@ -59,9 +56,6 @@
       <geometry>
         <mesh filename="package://racing_lmpc_launch/config/urdf/iac_car/visual/il15_tyre_fl.stl" scale="0.01 0.01 0.01" />
       </geometry>
-      <material>
-        <color rgba="1.0 1.0 1.0 0.6" />
-      </material>
       <origin xyz="0 0 0" rpy="0 0 0" />
     </visual>
   </link>
@@ -70,9 +64,6 @@
       <geometry>
         <mesh filename="package://racing_lmpc_launch/config/urdf/iac_car/visual/il15_tyre_fr.stl" scale="0.01 0.01 0.01" />
       </geometry>
-      <material>
-        <color rgba="1.0 1.0 1.0 0.6" />
-      </material>
       <origin xyz="0 0 0" rpy="0 0 0" />
     </visual>
   </link>
@@ -81,9 +72,6 @@
       <geometry>
         <mesh filename="package://racing_lmpc_launch/config/urdf/iac_car/visual/il15_tyre_rl.stl" scale="0.01 0.01 0.01" />
       </geometry>
-      <material>
-        <color rgba="1.0 1.0 1.0 0.6" />
-      </material>
       <origin xyz="0 0 0" rpy="0 0 0" />
     </visual>
   </link>
@@ -92,9 +80,6 @@
       <geometry>
         <mesh filename="package://racing_lmpc_launch/config/urdf/iac_car/visual/il15_tyre_rr.stl" scale="0.01 0.01 0.01" />
       </geometry>
-      <material>
-        <color rgba="1.0 1.0 1.0 0.6" />
-      </material>
       <origin xyz="0 0 0" rpy="0 0 0" />
     </visual>
   </link>
