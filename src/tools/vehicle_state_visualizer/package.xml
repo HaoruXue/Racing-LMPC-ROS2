@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>racing_lmpc_launch</name>
+  <name>vehicle_state_visualizer</name>
   <version>1.0.0</version>
-  <description>Launching different configs of MPC</description>
+  <description>visualize things like steering joint state</description>
   <maintainer email="haorux@andrew.cmu.edu">Haoru Xue</maintainer>
   <license>LGPLv3</license>
 
@@ -14,13 +14,11 @@
   <test_depend>ament_cmake_gtest</test_depend>
 
   <depend>rclcpp</depend>
-  <depend>xacro</depend>
-  <exec_depend>racing_mpc</exec_depend>
-  <exec_depend>racing_trajectory</exec_depend>
-  <exec_depend>racing_simulator</exec_depend>
-  <exec_depend>foxglove_bridge</exec_depend>
-  <exec_depend>vehicle_state_visualizer</exec_depend>
-  <exec_depend>robot_state_publisher</exec_depend>
+  <depend>backward_ros</depend>
+  <depend>sensor_msgs</depend>
+  <depend>mpclab_msgs</depend>
+  <depend>lmpc_transform_helper</depend>
+  <depend>lmpc_utils</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

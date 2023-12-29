@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(racing_lmpc_launch)
+project(vehicle_state_visualizer)
 
 # Default to C++17.
 if(NOT CMAKE_CXX_STANDARD)
@@ -30,14 +30,31 @@ ament_auto_find_build_dependencies(REQUIRED
   ${${PROJECT_NAME}_BUILDTOOL_DEPENDS}
 )
 
+set(${PROJECT_NAME}_SRC
+  src/vehicle_state_visualizer_node.cpp
+)
+
+set(${PROJECT_NAME}_HEADER
+  include/vehicle_state_visualizer/vehicle_state_visualizer_node.hpp
+)
+
+ament_auto_add_library(${PROJECT_NAME} SHARED
+  ${${PROJECT_NAME}_SRC}
+  ${${PROJECT_NAME}_HEADER}
+)
+
+ament_auto_add_executable(${PROJECT_NAME}_node_exe
+  src/vehicle_state_visualizer_node.cpp
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
+#   set(TEST_SOURCES test/test_vehicle_state_visualizer.cpp)
+#   set(TEST_EXE test_vehicle_state_visualizer)
+#   ament_add_gtest(${TEST_EXE} ${TEST_SOURCES})
+#   target_link_libraries(${TEST_EXE} ${PROJECT_NAME})
 endif()
 
 # Create & install ament package.
-ament_auto_package(INSTALL_TO_SHARE
-  param
-  launch
-  config
-)
+ament_auto_package()

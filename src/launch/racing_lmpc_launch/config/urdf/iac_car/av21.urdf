@@ -11,10 +11,10 @@
   <link name="model">
     <visual>
       <geometry>
-        <mesh filename="package://race_metadata/urdf/iac_car/visual/il15_body.stl" scale="0.01 0.01 0.01" />
+        <mesh filename="package://racing_lmpc_launch/config/urdf/iac_car/visual/il15_body.stl" scale="0.01 0.01 0.01" />
       </geometry>
-      <material name="white">
-        <color rgba="1.0 1.0 1.0 1.0" />
+      <material>
+        <color rgba="1.0 1.0 1.0 0.6" />
       </material>
     </visual>
   </link>
@@ -57,10 +57,10 @@
   <link name="tyre_fl">
     <visual>
       <geometry>
-        <mesh filename="package://race_metadata/urdf/iac_car/visual/il15_tyre_fl.stl" scale="0.01 0.01 0.01" />
+        <mesh filename="package://racing_lmpc_launch/config/urdf/iac_car/visual/il15_tyre_fl.stl" scale="0.01 0.01 0.01" />
       </geometry>
-      <material name="white">
-        <color rgba="1.0 1.0 1.0 1.0" />
+      <material>
+        <color rgba="1.0 1.0 1.0 0.6" />
       </material>
       <origin xyz="0 0 0" rpy="0 0 0" />
     </visual>
@@ -68,10 +68,10 @@
   <link name="tyre_fr">
     <visual>
       <geometry>
-        <mesh filename="package://race_metadata/urdf/iac_car/visual/il15_tyre_fr.stl" scale="0.01 0.01 0.01" />
+        <mesh filename="package://racing_lmpc_launch/config/urdf/iac_car/visual/il15_tyre_fr.stl" scale="0.01 0.01 0.01" />
       </geometry>
-      <material name="white">
-        <color rgba="1.0 1.0 1.0 1.0" />
+      <material>
+        <color rgba="1.0 1.0 1.0 0.6" />
       </material>
       <origin xyz="0 0 0" rpy="0 0 0" />
     </visual>
@@ -79,10 +79,10 @@
   <link name="tyre_rl">
     <visual>
       <geometry>
-        <mesh filename="package://race_metadata/urdf/iac_car/visual/il15_tyre_rl.stl" scale="0.01 0.01 0.01" />
+        <mesh filename="package://racing_lmpc_launch/config/urdf/iac_car/visual/il15_tyre_rl.stl" scale="0.01 0.01 0.01" />
       </geometry>
-      <material name="white">
-        <color rgba="1.0 1.0 1.0 1.0" />
+      <material>
+        <color rgba="1.0 1.0 1.0 0.6" />
       </material>
       <origin xyz="0 0 0" rpy="0 0 0" />
     </visual>
@@ -90,10 +90,10 @@
   <link name="tyre_rr">
     <visual>
       <geometry>
-        <mesh filename="package://race_metadata/urdf/iac_car/visual/il15_tyre_rr.stl" scale="0.01 0.01 0.01" />
+        <mesh filename="package://racing_lmpc_launch/config/urdf/iac_car/visual/il15_tyre_rr.stl" scale="0.01 0.01 0.01" />
       </geometry>
-      <material name="white">
-        <color rgba="1.0 1.0 1.0 1.0" />
+      <material>
+        <color rgba="1.0 1.0 1.0 0.6" />
       </material>
       <origin xyz="0 0 0" rpy="0 0 0" />
     </visual>
@@ -126,7 +126,7 @@
   <joint name="model_joint" type="fixed">
     <parent link="base_link" />
     <child link="model" />
-    <origin xyz="1.725 0.0 -0.31" rpy="1.5708 0.0 1.5708" />
+    <origin xyz="1.725 0.0 -0.31" rpy="0 0.0 1.5708" />
   </joint>
 
   <joint name="nav_base_joint" type="fixed">
@@ -331,16 +331,20 @@
     <origin xyz="-0.768 0.0 0.107" rpy="0 0 3.14159265358979" />
   </joint>
 
-  <joint name="fl_tyre_joint" type="fixed">
+  <joint name="fl_tyre_joint" type="revolute">
     <parent link="front_axle_middle" />
     <child link="tyre_fl" />
     <origin xyz="0.0 0.819 0.0" rpy="0 0 1.5708" />
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.523599" upper="0.523599" effort="1000" velocity="1"/>
   </joint>
 
-  <joint name="fr_tyre_joint" type="fixed">
+  <joint name="fr_tyre_joint" type="revolute">
     <parent link="front_axle_middle" />
     <child link="tyre_fr" />
     <origin xyz="0.0 -0.819 0.0" rpy="0 0 1.5708" />
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.523599" upper="0.523599" effort="1000" velocity="1"/>
   </joint>
 
   <joint name="rl_tyre_joint" type="fixed">

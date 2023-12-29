@@ -17,9 +17,10 @@ import os
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.substitutions import LaunchConfiguration
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from lmpc_utils.lmpc_launch_utils import get_share_file, get_sim_time_launch_arg
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
 def generate_launch_description():
@@ -49,6 +50,17 @@ def generate_launch_description():
         [
             declare_use_sim_time_cmd,
             vd_model_name,
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    os.path.join(
+                        get_share_file("racing_lmpc_launch"),
+                        "launch",
+                        "iac_car",
+                        "urdf.launch.py",
+                    )
+                ),
+                # condition=IfCondition(LaunchConfiguration("vehicle_model_name") == "iac_car"),
+            ),
             Node(
                 package="racing_simulator",
                 executable="racing_simulator_node_exe",
