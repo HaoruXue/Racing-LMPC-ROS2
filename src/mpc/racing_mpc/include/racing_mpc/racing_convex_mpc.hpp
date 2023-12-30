@@ -13,8 +13,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#ifndef RACING_MPC__RACING_MPC_HPP_
-#define RACING_MPC__RACING_MPC_HPP_
+#ifndef RACING_MPC__RACING_CONVEX_MPC_HPP_
+#define RACING_MPC__RACING_CONVEX_MPC_HPP_
 
 #include <memory>
 
@@ -120,4 +120,4 @@ protected:
 }  // namespace racing_mpc
 }  // namespace mpc
 }  // namespace lmpc
-#endif  // RACING_MPC__RACING_MPC_HPP_
+#endif  // RACING_MPC__RACING_CONVEX_MPC_HPP_

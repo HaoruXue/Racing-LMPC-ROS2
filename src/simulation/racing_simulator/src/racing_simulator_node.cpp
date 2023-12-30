@@ -93,10 +93,10 @@ RacingSimulatorNode::RacingSimulatorNode(const rclcpp::NodeOptions & options)
     const casadi::DM pts = casadi::DM::reshape(
       casadi::DM(
           {
-            lf, half_width,
-            lf, -half_width,
-            -lr, -half_width,
-            -lr, half_width
+            lf + lr, half_width,
+            lf + lr, -half_width,
+            0.0, -half_width,
+            0.0, half_width
           }), 2, 4);
     vehicle_polygon_msg_->polygon = build_polygon(pts);
   }

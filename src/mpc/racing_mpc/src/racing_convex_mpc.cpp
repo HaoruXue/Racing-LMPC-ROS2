@@ -480,7 +480,8 @@ const bool & RacingConvexMPC::solved() const
 //     // xi start with 1 since x0 must equal to x_ic and there is nothing we can do about it
 //     // const auto d_px =
 //     // utils::align_abscissa<MX>(xi(XIndex::PX), x0(XIndex::PX), total_length_) - x0(XIndex::PX);
-//     const auto x_base = model_->to_base_state()(casadi::MXDict{{"x", xi}, {"u", ui}}).at("x_out");
+//     const auto x_base =
+//       model_->to_base_state()(casadi::MXDict{{"x", xi}, {"u", ui}}).at("x_out");
 //     const auto dv = x_base(XIndex::VX) - vel_ref_(i);
 //     // const auto dv = x_base(XIndex::VX) - 10.0;
 //     cost += x_base(XIndex::PY) * x_base(XIndex::PY) * config_->q_contour;
@@ -496,7 +497,8 @@ const bool & RacingConvexMPC::solved() const
 //   // terminal cost
 //   const auto xN = X_(Slice(), config_->N - 1) * scale_x_;
 //   const auto uN = U_(Slice(), config_->N - 2) * scale_u_;
-//   const auto x_base_N = model_->to_base_state()(casadi::MXDict{{"x", xN}, {"u", uN}}).at("x_out");
+//   const auto x_base_N =
+//     model_->to_base_state()(casadi::MXDict{{"x", xN}, {"u", uN}}).at("x_out");
 //   const auto dv = x_base_N(XIndex::VX) - vel_ref_(config_->N - 1);
 //   cost += x_base_N(XIndex::PY) * x_base_N(XIndex::PY) * config_->q_contour * 10.0;
 //   cost += x_base_N(XIndex::YAW) * x_base_N(XIndex::YAW) * config_->q_heading * 10.0;
@@ -517,7 +519,8 @@ const bool & RacingConvexMPC::solved() const
 //   opti_.subject_to(convex_combi_ >= 0.0);
 //   opti_.subject_to(MX::sum1(convex_combi_) == 1.0);
 
-//   bool enable_convex_hull_slack = static_cast<double>(MX::sumsqr(config_->convex_hull_slack)) > 0.0;
+//   bool enable_convex_hull_slack =
+//     static_cast<double>(MX::sumsqr(config_->convex_hull_slack)) > 0.0;
 //   if (enable_convex_hull_slack) {
 //     convex_hull_slack_ = opti_.variable(model_->nx(), 1);
 //     opti_.subject_to(xN == xN_combi + convex_hull_slack_);
