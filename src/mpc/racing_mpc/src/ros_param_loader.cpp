@@ -92,6 +92,8 @@ RacingMPCConfig::SharedPtr load_parameters(rclcpp::Node * node)
           casadi::DM(declare_vec("racing_mpc.x_min")),
           casadi::DM(declare_vec("racing_mpc.u_max")),
           casadi::DM(declare_vec("racing_mpc.u_min")),
+          casadi::DM(declare_vec("racing_mpc.du_max")),
+          casadi::DM(declare_vec("racing_mpc.du_min")),
           declare_double("racing_mpc.max_vel_ref_diff"),
 
           declare_bool("racing_mpc.learning"),
