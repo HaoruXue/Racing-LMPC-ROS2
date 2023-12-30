@@ -43,8 +43,7 @@ RacingMPCSolverNode::RacingMPCSolverNode(const rclcpp::NodeOptions & options)
   );
   bool full_dynamics = utils::declare_parameter<bool>(
     this, "racing_mpc_node.full_dynamics", false);
-  if (config->interface == "conic")
-  {
+  if (config->interface == "conic") {
     mpc_ = std::make_unique<RacingConvexMPC>(config, model, full_dynamics);
     RCLCPP_INFO(this->get_logger(), "Using Racing Convex MPC (conic).");
   } else if (config->interface == "opti") {

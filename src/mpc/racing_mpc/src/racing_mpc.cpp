@@ -33,8 +33,8 @@ RacingMPC::RacingMPC(
   BaseVehicleModel::SharedPtr model,
   const bool & full_dynamics)
 : config_(mpc_config), model_(model),
-  scale_x_(casadi::DM{2000.0, 10.0, 0.1, 80.0, 2.0, 2.0}),
-  scale_u_(casadi::DM{10.0, 0.3}),
+  scale_x_(config_->x_max),
+  scale_u_(config_->u_max),
   align_abscissa_(utils::align_abscissa_function(config_->N)),
   opti_(full_dynamics ? casadi::Opti() : casadi::Opti("conic")),
   X_(opti_.variable(model_->nx(), config_->N)),
@@ -57,6 +57,18 @@ RacingMPC::RacingMPC(
 {
   using casadi::MX;
   using casadi::Slice;
+
+  // furture adjust x scale
+  scale_x_(XIndex::PX) = config_->x_max(XIndex::VX);
+  scale_x_(XIndex::PY) = config_->average_track_width;
+  scale_x_(XIndex::YAW) = M_PI;
+  // throw if scale contains inf
+  if (static_cast<double>(casadi::DM::sum1(scale_x_)) == std::numeric_limits<double>::infinity()) {
+    throw std::runtime_error("scale_x contains inf.");
+  }
+  if (static_cast<double>(casadi::DM::sum1(scale_u_)) == std::numeric_limits<double>::infinity()) {
+    throw std::runtime_error("scale_u contains inf.");
+  }
 
   // configure solver
   if (full_dynamics) {
@@ -242,6 +254,8 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
 
   // set up the offsets
   const auto P0 = X_ref(XIndex::PX, Slice());
+  auto x_offset = casadi::DM::zeros(model_->nx());
+  x_offset(XIndex::PX) = x_ic(XIndex::PX);
   // const auto X0 = DM::vertcat({P0, DM::zeros(model_->nx() - 1, config_->N)});
 
   // if optimal reference is given, typically from last MPC solution,
@@ -255,7 +269,7 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
     const auto & U_optm_ref = in.at("U_optm_ref");
     const auto & T_optm_ref = in.at("T_optm_ref");
     const auto & dU_optm_ref = in.at("dU_optm_ref");
-    opti_.set_initial(X_ * scale_x_, X_optm_ref);
+    opti_.set_initial(X_ * scale_x_, X_optm_ref - x_offset);
     opti_.set_initial(U_ * scale_u_, U_optm_ref);
     opti_.set_initial(dU_ * scale_u_, dU_optm_ref);
     opti_.set_value(T_ref_, T_optm_ref);
@@ -264,30 +278,31 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
     //   opti_.set_initial(opti_.lam_g(), lam_g0);
     // }
   } else {
+    throw std::runtime_error("No optm reference given.");
     // TODO(haoru): just initialize with X_ref if no optm ref given
-    if (!sol_) {
-      throw std::runtime_error("No warm start given and no previous solution found.");
-    }
-    opti_.set_value(T_ref_, in.at("T_ref"));
-    opti_.set_initial(sol_->value_variables());
-    const auto last_abscissa_optm = (sol_->value(X_) * scale_x_)(XIndex::PX, Slice());
-    const auto total_lengths = DM::ones(1, config_->N) * total_length;
-    // Rember to wrap the abscissa to the range [0, total_length]
-    const auto this_abscissa_optm =
-      align_abscissa_(
-      casadi::DMDict{{"abscissa_1", last_abscissa_optm},
-        {"abscissa_2", P0}, {"total_distance", total_lengths}}).at("abscissa_1_aligned");
-    opti_.set_initial((X_ * scale_x_)(XIndex::PX, Slice()), this_abscissa_optm);
+    // if (!sol_) {
+    //   throw std::runtime_error("No warm start given and no previous solution found.");
+    // }
+    // opti_.set_value(T_ref_, in.at("T_ref"));
+    // opti_.set_initial(sol_->value_variables());
+    // const auto last_abscissa_optm = (sol_->value(X_) * scale_x_)(XIndex::PX, Slice());
+    // const auto total_lengths = DM::ones(1, config_->N) * total_length;
+    // // Rember to wrap the abscissa to the range [0, total_length]
+    // const auto this_abscissa_optm =
+    //   align_abscissa_(
+    //   casadi::DMDict{{"abscissa_1", last_abscissa_optm},
+    //     {"abscissa_2", P0}, {"total_distance", total_lengths}}).at("abscissa_1_aligned");
+    // opti_.set_initial((X_ * scale_x_)(XIndex::PX, Slice()), this_abscissa_optm);
     // const auto lam_g0 = sol_->value(opti_.lam_g());
     // opti_.set_initial(opti_.lam_g(), lam_g0);
   }
 
   // starting state must match
-  opti_.set_value(x_ic_, x_ic);
+  opti_.set_value(x_ic_, x_ic - x_offset);
   opti_.set_value(u_ic_, u_ic);
 
   // initialize other parameters
-  opti_.set_value(X_ref_, X_ref);
+  opti_.set_value(X_ref_, X_ref - x_offset);
   opti_.set_value(U_ref_, U_ref);
   opti_.set_value(bound_left_, bound_left);
   opti_.set_value(bound_right_, bound_right);
@@ -301,7 +316,7 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
     sol_ = std::make_unique<casadi::OptiSol>(opti_.solve_limited());
     // const auto sol = opti.solve();
     solved_ = true;
-    out["X_optm"] = sol_->value(X_) * scale_x_;
+    out["X_optm"] = sol_->value(X_) * scale_x_ + x_offset;
     out["U_optm"] = sol_->value(U_) * scale_u_;
     out["dU_optm"] = sol_->value(dU_) * scale_u_;
     stats = sol_->stats();

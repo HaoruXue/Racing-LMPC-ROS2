@@ -33,8 +33,8 @@ RacingConvexMPC::RacingConvexMPC(
   BaseVehicleModel::SharedPtr model,
   const bool & full_dynamics)
 : config_(mpc_config), model_(model),
-  scale_x_(casadi::DM{2000.0, 10.0, 0.1, 80.0, 2.0, 2.0}),
-  scale_u_(casadi::DM{10.0, 0.3}),
+  scale_x_(config_->x_max),
+  scale_u_(config_->u_max),
   align_abscissa_(utils::align_abscissa_function(config_->N)),
   X_(casadi::SX::sym("X", model_->nx(), config_->N)),
   U_(casadi::SX::sym("U", model_->nu(), config_->N)),
@@ -58,6 +58,18 @@ RacingConvexMPC::RacingConvexMPC(
   using casadi::SX;
   using casadi::Slice;
 
+  // furture adjust x scale
+  scale_x_(XIndex::PX) = config_->x_max(XIndex::VX);
+  scale_x_(XIndex::PY) = config_->average_track_width;
+  scale_x_(XIndex::YAW) = M_PI;
+  // throw if scale contains inf
+  if (static_cast<double>(casadi::DM::sum1(scale_x_)) == std::numeric_limits<double>::infinity()) {
+    throw std::runtime_error("scale_x contains inf.");
+  }
+  if (static_cast<double>(casadi::DM::sum1(scale_u_)) == std::numeric_limits<double>::infinity()) {
+    throw std::runtime_error("scale_u contains inf.");
+  }
+
   // configure solver
   if (full_dynamics) {
     throw std::runtime_error("Full dynamics is not supported by convex MPC.");
@@ -70,6 +82,7 @@ RacingConvexMPC::RacingConvexMPC(
       {
         {"polish", true},
         {"verbose", config_->verbose ? true : false},
+        {"scaling", 0}
       }
     }
   };
@@ -292,6 +305,10 @@ void RacingConvexMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, cas
   const auto & bank_angle = in.at("bank_angle");
   const auto & T_ref = in.at("T_ref");
 
+  // build x offset
+  auto x_offset = casadi::DM::zeros(model_->nx());
+  x_offset(XIndex::PX) = x_ic(XIndex::PX);
+
   // std::cout << "[x_ic]:\n" << x_ic << std::endl;
   // std::cout << "[u_ic]:\n" << u_ic << std::endl;
   // std::cout << "[t_ic]:\n" << t_ic << std::endl;
@@ -323,8 +340,10 @@ void RacingConvexMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, cas
   casadi::SXVector sub_v = {
     T_ref_, x_ic_, u_ic_, X_ref_, U_ref_, bound_left_, bound_right_, total_length_,
     curvatures_, vel_ref_, bank_angle_, X_, U_, dU_, boundary_slack_};
-  casadi::SXVector sub_vdef = {T_ref, x_ic, u_ic, X_ref, U_ref, bound_left, bound_right,
-    total_length, curvatures, vel_ref, bank_angle, X_optm_ref / scale_x_, U_optm_ref / scale_u_,
+  casadi::SXVector sub_vdef =
+  {T_ref, x_ic - x_offset, u_ic, X_ref - x_offset, U_ref, bound_left, bound_right,
+    total_length, curvatures, vel_ref, bank_angle, (X_optm_ref - x_offset) / scale_x_,
+    U_optm_ref / scale_u_,
     dU_optm_ref / scale_u_, 0.0};
   casadi::SXVector sub_ex = {prob_.x, prob_.lbg, prob_.ubg, prob_.lbx, prob_.ubx, prob_.p};
   casadi::SXVector sub_result = casadi::SX::substitute(sub_ex, sub_v, sub_vdef);
@@ -374,7 +393,7 @@ void RacingConvexMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, cas
       }
     }
 
-    out["X_optm"] = X_optm * scale_x_;
+    out["X_optm"] = X_optm * scale_x_ + x_offset;
     out["U_optm"] =
       U_optm(
       casadi::Slice(),
