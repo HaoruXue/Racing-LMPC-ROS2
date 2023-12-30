@@ -52,7 +52,6 @@ RacingConvexMPC::RacingConvexMPC(
   curvatures_(casadi::SX::sym("k", 1, config_->N)),
   vel_ref_(casadi::SX::sym("vel_ref", 1, config_->N)),
   solved_(false),
-  full_dynamics_(full_dynamics),
   enable_boundary_slack_(static_cast<double>(config_->q_boundary) > 0.0)
 {
   using casadi::MX;
@@ -398,64 +397,6 @@ void RacingConvexMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, cas
   }
 }
 
-void RacingConvexMPC::create_warm_start(const casadi::DMDict & in, casadi::DMDict & out)
-{
-  using casadi::DM;
-  using casadi::Slice;
-
-  const auto & P0 = in.at("P0");
-  const auto & Yaws = in.at("Yaws");
-  const auto & Radii = in.at("Radii");
-  const auto & current_vel = in.at("current_vel");
-  const auto & target_vel = in.at("target_vel");
-
-  if (static_cast<size_t>(P0.size2()) != config_->N) {
-    throw std::length_error("create_warm_start: P0 dimension does not match MPC dimension.");
-  }
-  if (static_cast<size_t>(Yaws.size2()) != config_->N) {
-    throw std::length_error("create_warm_start: Yaws dimension does not match MPC dimension.");
-  }
-  if (static_cast<double>(current_vel) <= 0.0) {
-    throw std::range_error("Current velocity cannot be smaller than or equal to zero.");
-  }
-  if (static_cast<double>(target_vel) <= 0.0) {
-    throw std::range_error("Target velocity cannot be smaller than or equal to zero.");
-  }
-
-  auto X_ref = DM::zeros(model_->nx(), config_->N);
-  auto U_ref = DM::zeros(model_->nu(), config_->N - 1);
-  auto T_ref = DM::zeros(config_->N - 1, 1);
-
-  X_ref(Slice(0, 2), Slice()) = P0;
-  X_ref(XIndex::YAW, Slice()) = Yaws;
-  X_ref(XIndex::VX, Slice()) = DM::linspace(current_vel, target_vel, config_->N);
-  X_ref(XIndex::VYAW, Slice()) = X_ref(XIndex::VX, Slice()) / Radii;
-
-  for (size_t i = 0; i < config_->N - 1; i++) {
-    // fill control force with 2nd Newton's law
-    const auto v0 = X_ref(XIndex::VX, i);
-    const auto v1 = X_ref(XIndex::VX, i + 1);
-    const auto d = DM::norm_2(P0(Slice(), i) - P0(Slice(), i + 1));
-    const auto a = static_cast<double>((pow(v1, 2) - pow(v0, 2)) / (2 * d));
-    const auto f = model_->get_base_config().chassis_config->total_mass * a;
-    if (f > 0.0) {
-      U_ref(UIndex::FD, i) = f;
-    } else {
-      U_ref(UIndex::FB, i) = f;
-    }
-    T_ref(i) = d / v0;
-
-    // fill steering angle with pure pursuit
-    {
-      U_ref(
-        UIndex::STEER,
-        i) = atan(model_->get_base_config().chassis_config->wheel_base / Radii(i));
-    }
-  }
-  out["X_ref"] = X_ref;
-  out["U_ref"] = U_ref;
-}
-
 BaseVehicleModel & RacingConvexMPC::get_model()
 {
   return *model_;
@@ -465,112 +406,6 @@ const bool & RacingConvexMPC::solved() const
 {
   return solved_;
 }
-
-// void RacingConvexMPC::build_tracking_cost(casadi::MX & cost)
-// {
-//   using casadi::MX;
-//   using casadi::Slice;
-
-//   // --- MPC stage cost ---
-//   const auto x0 = X_(Slice(), 0) * scale_x_;
-//   for (size_t i = 0; i < config_->N - 1; i++) {
-//     const auto xi = X_(Slice(), i) * scale_x_;
-//     const auto ui = U_(Slice(), i - 1) * scale_u_;
-//     const auto dui = dU_(Slice(), i - 1) * scale_u_;
-//     // xi start with 1 since x0 must equal to x_ic and there is nothing we can do about it
-//     // const auto d_px =
-//     // utils::align_abscissa<MX>(xi(XIndex::PX), x0(XIndex::PX), total_length_) - x0(XIndex::PX);
-//     const auto x_base =
-//       model_->to_base_state()(casadi::MXDict{{"x", xi}, {"u", ui}}).at("x_out");
-//     const auto dv = x_base(XIndex::VX) - vel_ref_(i);
-//     // const auto dv = x_base(XIndex::VX) - 10.0;
-//     cost += x_base(XIndex::PY) * x_base(XIndex::PY) * config_->q_contour;
-//     cost += x_base(XIndex::YAW) * x_base(XIndex::YAW) * config_->q_heading;
-//     cost += dv * dv * config_->q_vel;
-//     cost += x_base(XIndex::VY) * x_base(XIndex::VY) * config_->q_vy;
-//     cost += x_base(XIndex::VYAW) * x_base(XIndex::VYAW) * config_->q_vyaw;
-
-//     cost += MX::mtimes({ui.T(), config_->R, ui});
-//     cost += MX::mtimes({dui.T(), config_->R_d, dui});
-//   }
-
-//   // terminal cost
-//   const auto xN = X_(Slice(), config_->N - 1) * scale_x_;
-//   const auto uN = U_(Slice(), config_->N - 2) * scale_u_;
-//   const auto x_base_N =
-//     model_->to_base_state()(casadi::MXDict{{"x", xN}, {"u", uN}}).at("x_out");
-//   const auto dv = x_base_N(XIndex::VX) - vel_ref_(config_->N - 1);
-//   cost += x_base_N(XIndex::PY) * x_base_N(XIndex::PY) * config_->q_contour * 10.0;
-//   cost += x_base_N(XIndex::YAW) * x_base_N(XIndex::YAW) * config_->q_heading * 10.0;
-//   cost += dv * dv * config_->q_vel * 10.0;
-// }
-
-// void RacingConvexMPC::build_lmpc_cost(casadi::MX & cost)
-// {
-//   using casadi::MX;
-//   using casadi::Slice;
-
-//   convex_combi_ = opti_.variable(config_->num_ss_pts);
-//   ss_ = opti_.parameter(model_->nx(), config_->num_ss_pts);
-//   ss_costs_ = opti_.parameter(1, config_->num_ss_pts);
-//   const auto xN = X_(Slice(), -1) * scale_x_;
-//   const auto xN_combi = MX::mtimes({ss_, convex_combi_});
-//   // convex combination constraint
-//   opti_.subject_to(convex_combi_ >= 0.0);
-//   opti_.subject_to(MX::sum1(convex_combi_) == 1.0);
-
-//   bool enable_convex_hull_slack =
-//     static_cast<double>(MX::sumsqr(config_->convex_hull_slack)) > 0.0;
-//   if (enable_convex_hull_slack) {
-//     convex_hull_slack_ = opti_.variable(model_->nx(), 1);
-//     opti_.subject_to(xN == xN_combi + convex_hull_slack_);
-//     cost += MX::mtimes(
-//       {convex_hull_slack_.T(), MX::diag(
-//           config_->convex_hull_slack), convex_hull_slack_});
-//   } else {
-//     opti_.subject_to(xN_combi == xN);
-//   }
-
-//   cost += MX::mtimes({ss_costs_, convex_combi_});
-
-//   // control effort and rate cost
-//   for (size_t i = 0; i < config_->N - 1; i++) {
-//     const auto ui = U_(Slice(), i - 1) * scale_u_;
-//     const auto dui = dU_(Slice(), i - 1) * scale_u_;
-//     cost += MX::mtimes({ui.T(), config_->R, ui});
-//     cost += MX::mtimes({dui.T(), config_->R_d, dui});
-
-//     // const auto xi = X_(Slice(), i) * scale_x_;
-//     // const auto x_base =
-//     //   model_->to_base_state()(casadi::MXDict{{"x", xi}, {"u", ui}}).at("x_out");
-//     // cost += x_base(XIndex::VY) * x_base(XIndex::VY) * config_->q_vy;
-//     // cost += x_base(XIndex::VYAW) * x_base(XIndex::VYAW) * config_->q_vyaw;
-
-//     // cost += MX::mtimes({ui.T(), config_->R, ui});
-//     // cost += MX::mtimes({dui.T(), config_->R_d, dui});
-//   }
-// }
-
-// void RacingConvexMPC::build_boundary_constraint(casadi::MX & cost)
-// {
-//   using casadi::MX;
-//   using casadi::Slice;
-
-//   bool enable_boundary_slack = static_cast<double>(config_->q_boundary) > 0.0;
-//   const auto PY = X_(XIndex::PY, Slice()) * scale_x_(XIndex::PY);
-//   const auto margin = config_->margin + model_->get_base_config().chassis_config->b / 2.0;
-//   if (enable_boundary_slack) {
-//     boundary_slack_ = opti_.variable(1);
-//     opti_.subject_to(
-//       opti_.bounded(
-//         bound_right_ + margin - boundary_slack_, PY,
-//         bound_left_ - margin + boundary_slack_));
-//     opti_.subject_to(boundary_slack_ >= 0.0);
-//     cost += MX::mtimes({boundary_slack_.T(), config_->q_boundary, boundary_slack_});
-//   } else {
-//     opti_.subject_to(opti_.bounded(bound_right_ + margin, PY, bound_left_ - margin));
-//   }
-// }
 }  // namespace racing_mpc
 }  // namespace mpc
 }  // namespace lmpc

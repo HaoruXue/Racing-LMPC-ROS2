@@ -62,7 +62,6 @@ public:
 
   bool init() override;
   void solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::Dict & stats) override;
-  void create_warm_start(const casadi::DMDict & in, casadi::DMDict & out);
 
   BaseVehicleModel & get_model();
 
@@ -107,15 +106,7 @@ protected:
   // flag if the nlp has been solved at least once
   bool solved_;
 
-  // nonlinear MPC or convex MPC
-  bool full_dynamics_;
-
   bool enable_boundary_slack_;
-
-  // helper functions
-  // void build_tracking_cost(casadi::MX & cost);
-  // void build_lmpc_cost(casadi::MX & cost);
-  // void build_boundary_constraint(casadi::MX & cost);
 };
 }  // namespace racing_mpc
 }  // namespace mpc
