@@ -414,8 +414,12 @@ void SingleTrackPlanarModel::compile_dynamics()
 
     const auto u_base_out = SX::vertcat(
           {
-            u_derived_sym(UIndexSimple::LON) * 1 / (1 + SX::exp(-u_derived_sym(UIndexSimple::LON))),
-            u_derived_sym(UIndexSimple::LON) * 1 / (1 + SX::exp(u_derived_sym(UIndexSimple::LON))),
+            SX::if_else(
+              u_derived_sym(UIndexSimple::LON) > 0.0, u_derived_sym(UIndexSimple::LON),
+              0.0),
+            SX::if_else(
+              u_derived_sym(UIndexSimple::LON) < 0.0, u_derived_sym(UIndexSimple::LON),
+              0.0),
             u_derived_sym(UIndexSimple::STEER_SIMPLE)
           });
     const auto u_derived_out = SX::vertcat(

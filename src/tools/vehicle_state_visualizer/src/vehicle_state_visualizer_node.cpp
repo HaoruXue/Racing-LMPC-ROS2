@@ -40,7 +40,7 @@ VehicleStateVisualizerNode::VehicleStateVisualizerNode(const rclcpp::NodeOptions
     std::bind(
       &VehicleStateVisualizerNode::vehicle_actuation_callback, this,
       std::placeholders::_1));
-  
+
   // vehicle_state_sub_ = this->create_subscription<mpclab_msgs::msg::VehicleStateMsg>(
   //   "vehicle_state", 1,
   //   std::bind(
