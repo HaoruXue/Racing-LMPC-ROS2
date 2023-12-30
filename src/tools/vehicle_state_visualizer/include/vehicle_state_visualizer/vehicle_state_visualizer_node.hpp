@@ -22,6 +22,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <mpclab_msgs/msg/vehicle_actuation_msg.hpp>
+#include <mpclab_msgs/msg/vehicle_state_msg.hpp>
 
 #include <lmpc_transform_helper/lmpc_transform_helper.hpp>
 
@@ -39,14 +40,21 @@ protected:
   std::string fl_joint_;
   std::string fr_joint_;
 
-  // subscribers (from controller)
+  // subscribers (from controller and localization)
   rclcpp::Subscription<mpclab_msgs::msg::VehicleActuationMsg>::SharedPtr vehicle_actuation_sub_ {};
+  // rclcpp::Subscription<mpclab_msgs::msg::VehicleStateMsg>::SharedPtr vehicle_state_sub_ {};
 
   // publishers
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_publisher_;
 
+  // // last state
+  // mpclab_msgs::msg::VehicleStateMsg::SharedPtr last_state_;
+  // sensor_msgs::msg::JointState::SharedPtr last_wheel_spin_state_;
+  // double wheel_radius_;
+
   // callback
   void vehicle_actuation_callback(const mpclab_msgs::msg::VehicleActuationMsg::SharedPtr msg);
+  // void vehicle_state_callback(const mpclab_msgs::msg::VehicleStateMsg::SharedPtr msg);
 };
 }  // namespace vehicle_state_visualizer
 }  // namespace lmpc

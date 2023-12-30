@@ -84,6 +84,11 @@
     </visual>
   </link>
 
+  <link name="tyre_fl_rotate" />
+  <link name="tyre_fr_rotate" />
+  <link name="tyre_rl_rotate" />
+  <link name="tyre_rr_rotate" />
+
   <joint name="rear_axle_middle_ground_joint" type="fixed">
     <parent link="base_footprint" />
     <child link="rear_axle_middle_ground" />
@@ -318,7 +323,7 @@
 
   <joint name="fl_tyre_joint" type="revolute">
     <parent link="front_axle_middle" />
-    <child link="tyre_fl" />
+    <child link="tyre_fl_rotate" />
     <origin xyz="0.0 0.819 0.0" rpy="0 0 1.5708" />
     <axis xyz="0 0 1"/>
     <limit lower="-0.523599" upper="0.523599" effort="1000" velocity="1"/>
@@ -326,7 +331,7 @@
 
   <joint name="fr_tyre_joint" type="revolute">
     <parent link="front_axle_middle" />
-    <child link="tyre_fr" />
+    <child link="tyre_fr_rotate" />
     <origin xyz="0.0 -0.819 0.0" rpy="0 0 1.5708" />
     <axis xyz="0 0 1"/>
     <limit lower="-0.523599" upper="0.523599" effort="1000" velocity="1"/>
@@ -334,14 +339,46 @@
 
   <joint name="rl_tyre_joint" type="fixed">
     <parent link="rear_axle_middle" />
-    <child link="tyre_rl" />
+    <child link="tyre_rl_rotate" />
     <origin xyz="0.0 0.762 0.0" rpy="0 0 1.5708" />
   </joint>
 
   <joint name="rr_tyre_joint" type="fixed">
     <parent link="rear_axle_middle" />
-    <child link="tyre_rr" />
+    <child link="tyre_rr_rotate" />
     <origin xyz="0.0 -0.762 0.0" rpy="0 0 1.5708" />
+  </joint>
+
+  <joint name="fl_tyre_rotate_joint" type="revolute">
+    <parent link="tyre_fl_rotate" />
+    <child link="tyre_fl" />
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+    <axis xyz="1 0 0"/>
+    <limit lower="-3.15" upper="3.15" effort="1000" velocity="100"/>
+  </joint>
+
+  <joint name="fr_tyre_rotate_joint" type="revolute">
+    <parent link="tyre_fr_rotate" />
+    <child link="tyre_fr" />
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+    <axis xyz="1 0 0"/>
+    <limit lower="-3.15" upper="3.15" effort="1000" velocity="100"/>
+  </joint>
+
+  <joint name="rl_tyre_rotate_joint" type="revolute">
+    <parent link="tyre_rl_rotate" />
+    <child link="tyre_rl" />
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+    <axis xyz="1 0 0"/>
+    <limit lower="-3.15" upper="3.15" effort="1000" velocity="100"/>
+  </joint>
+
+  <joint name="rr_tyre_rotate_joint" type="revolute">
+    <parent link="tyre_rr_rotate" />
+    <child link="tyre_rr" />
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+    <axis xyz="1 0 0"/>
+    <limit lower="-3.15" upper="3.15" effort="1000" velocity="100"/>
   </joint>
 </robot>
   

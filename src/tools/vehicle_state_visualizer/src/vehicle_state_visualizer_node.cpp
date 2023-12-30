@@ -26,14 +26,26 @@ VehicleStateVisualizerNode::VehicleStateVisualizerNode(const rclcpp::NodeOptions
 : rclcpp::Node("vehicle_state_visualizer", options),
   fl_joint_(lmpc::utils::declare_parameter<std::string>(this, "fl_joint")),
   fr_joint_(lmpc::utils::declare_parameter<std::string>(this, "fr_joint"))
+  // wheel_radius_(lmpc::utils::declare_parameter<double>(this, "wheel_radius"))
 {
   joint_publisher_ = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 1);
+
+  // last_wheel_spin_state_ = std::make_shared<sensor_msgs::msg::JointState>();
+  // last_wheel_spin_state_->name = {
+  //   "fl_tyre_rotate_joint", "fr_tyre_rotate_joint", "rl_tyre_rotate_joint", "rr_tyre_rotate_joint"};
+  // last_wheel_spin_state_->position = {0.0, 0.0, 0.0, 0.0};
 
   vehicle_actuation_sub_ = this->create_subscription<mpclab_msgs::msg::VehicleActuationMsg>(
     "vehicle_actuation", 1,
     std::bind(
       &VehicleStateVisualizerNode::vehicle_actuation_callback, this,
       std::placeholders::_1));
+  
+  // vehicle_state_sub_ = this->create_subscription<mpclab_msgs::msg::VehicleStateMsg>(
+  //   "vehicle_state", 1,
+  //   std::bind(
+  //     &VehicleStateVisualizerNode::vehicle_state_callback, this,
+  //     std::placeholders::_1));
 }
 
 void VehicleStateVisualizerNode::vehicle_actuation_callback(
@@ -50,6 +62,27 @@ void VehicleStateVisualizerNode::vehicle_actuation_callback(
   joint_state.position = {left_steer, right_steer};
   joint_publisher_->publish(joint_state);
 }
+
+// void VehicleStateVisualizerNode::vehicle_state_callback(
+//   const mpclab_msgs::msg::VehicleStateMsg::SharedPtr msg)
+// {
+//   if (!last_state_)
+//   {
+//     last_state_ = msg;
+//     return;
+//   }
+//   const auto time_elapsed = msg->t - last_state_->t;
+//   const auto v_lon = msg->v.v_long;
+//   // convert from m/s to rad/s
+//   const auto v_rot = v_lon / wheel_radius_;
+//   const auto delta_theta = v_rot * time_elapsed;
+//   for (auto & pos : last_wheel_spin_state_->position)
+//   {
+//     pos = fmod(pos + delta_theta, 2 * M_PI);
+//   }
+//   last_wheel_spin_state_->header.stamp = msg->header.stamp;
+//   joint_publisher_->publish(*last_wheel_spin_state_);
+// }
 }  // namespace vehicle_state_visualizer
 }  // namespace lmpc
 

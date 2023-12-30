@@ -57,6 +57,7 @@ def generate_launch_description():
             {
                 "fl_joint": "fl_tyre_joint",
                 "fr_joint": "fr_tyre_joint",
+                "wheel_radius": 0.29,
             },
         ],
     )
