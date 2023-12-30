@@ -30,7 +30,7 @@
 #include <lmpc_utils/cycle_profiler.hpp>
 
 #include "racing_mpc/racing_mpc_config.hpp"
-#include "racing_mpc/racing_mpc.hpp"
+#include "base_mpc/base_mpc.hpp"
 
 namespace lmpc
 {
@@ -49,7 +49,7 @@ protected:
   // mpc solve service
   rclcpp::Service<SolveMPC>::SharedPtr solve_mpc_srv_;
   // mpc solver
-  RacingMPC::UniquePtr mpc_ {};
+  BaseMPC::UniquePtr mpc_ {};
   // profilers
   lmpc::utils::CycleProfiler<double>::UniquePtr profiler_ {};
   lmpc::utils::CycleProfiler<double>::UniquePtr profiler_iter_count_ {};

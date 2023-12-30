@@ -4,6 +4,7 @@
       max_cpu_time: 0.085
       max_iter: 200
       tol: 1e-3
+      interface: opti
       n: 40
       dt: 0.025
       margin: 0.1

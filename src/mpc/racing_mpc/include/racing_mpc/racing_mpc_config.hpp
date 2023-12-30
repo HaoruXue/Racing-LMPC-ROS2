@@ -42,6 +42,7 @@ struct RacingMPCConfig
   double max_cpu_time;  // max solving time (s)
   int64_t max_iter;  // max solver iterations
   double tol;  // convergence tolarance
+  std::string interface;  // opti for both tracking and learning MPC. conic for efficient tracking MPC
 
   // constraint settings
   size_t N;  // steps

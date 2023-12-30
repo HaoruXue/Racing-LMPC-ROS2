@@ -147,8 +147,8 @@ RacingConvexMPC::RacingConvexMPC(
     if (i < static_cast<casadi_int>(config_->N - 1)) {
       x_vec.push_back(dU_(Slice(), i));
       // TODO(haoru): hardcoded rate constraints. Replace with config.
-      lbx_vec.push_back(config_->u_min * 2 / scale_u_);
-      ubx_vec.push_back(config_->u_max * 2 / scale_u_);
+      lbx_vec.push_back(config_->du_min / scale_u_);
+      ubx_vec.push_back(config_->du_max / scale_u_);
       nu.push_back(model_->nu());
       if (enable_boundary_slack_) {
         x_vec.push_back(boundary_slack_(i));

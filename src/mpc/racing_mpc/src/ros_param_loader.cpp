@@ -66,6 +66,7 @@ RacingMPCConfig::SharedPtr load_parameters(rclcpp::Node * node)
           declare_double("racing_mpc.max_cpu_time"),
           declare_int("racing_mpc.max_iter"),
           declare_double("racing_mpc.tol"),
+          declare_string("racing_mpc.interface"),
           static_cast<size_t>(declare_int("racing_mpc.n")),
           declare_double("racing_mpc.dt"),
           declare_double("racing_mpc.margin"),

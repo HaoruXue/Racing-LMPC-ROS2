@@ -19,6 +19,8 @@
 #include "lmpc_utils/ros_casadi_helper.hpp"
 #include "lmpc_utils/utils.hpp"
 #include "vehicle_model_factory/vehicle_model_factory.hpp"
+#include "racing_mpc/racing_mpc.hpp"
+#include "racing_mpc/racing_convex_mpc.hpp"
 
 namespace lmpc
 {
@@ -41,7 +43,16 @@ RacingMPCSolverNode::RacingMPCSolverNode(const rclcpp::NodeOptions & options)
   );
   bool full_dynamics = utils::declare_parameter<bool>(
     this, "racing_mpc_node.full_dynamics", false);
-  mpc_ = std::make_unique<RacingMPC>(config, model, full_dynamics);
+  if (config->interface == "conic")
+  {
+    mpc_ = std::make_unique<RacingConvexMPC>(config, model, full_dynamics);
+    RCLCPP_INFO(this->get_logger(), "Using Racing Convex MPC (conic).");
+  } else if (config->interface == "opti") {
+    mpc_ = std::make_unique<RacingMPC>(config, model, full_dynamics);
+    RCLCPP_INFO(this->get_logger(), "Using Racing MPC (opti).");
+  } else {
+    throw std::invalid_argument("Invalid interface: " + config->interface);
+  }
 
   // initialize mpc solve service
   solve_mpc_srv_ = create_service<SolveMPC>(

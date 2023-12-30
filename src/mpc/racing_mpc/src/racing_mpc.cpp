@@ -125,23 +125,12 @@ RacingMPC::RacingMPC(
     const auto ti = T_ref_(i);
     const auto k = curvatures_(i);
     const auto bank_angle = bank_angle_(i);
-    casadi::MXDict constraint_in = {
-      {"x", xi},
-      {"u", ui},
-      {"xip1", xip1},
-      {"t", ti},
-      {"k", k},
-      {"track_length", total_length_},
-    };
-
     const auto dui = dU_(Slice(), i) * scale_u_;
-    constraint_in["dui"] = dui;
-
-    model_->add_nlp_constraints(opti_, constraint_in);
 
     // primal bounds
     opti_.subject_to(opti_.bounded(config_->x_min, xi, config_->x_max));
     opti_.subject_to(opti_.bounded(config_->u_min, ui, config_->u_max));
+    opti_.subject_to(opti_.bounded(config_->du_min, dui, config_->du_max));
 
     // dynamics constraints
     // auto xip1_temp = casadi::MX(xip1);

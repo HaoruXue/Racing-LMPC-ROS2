@@ -4,6 +4,7 @@
       max_cpu_time: 0.085
       max_iter: 200
       tol: 1e-3
+      interface: conic
       n: 80
       dt: 0.025
 
