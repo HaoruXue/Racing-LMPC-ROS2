@@ -538,6 +538,7 @@ void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
 
   const auto & sol_in = solution.in;
   const auto & sol_out = solution.solution;
+  const auto & bank = sol_in.at("bank_angle");
   lmpc_msgs::msg::MPCTelemetry telemetry_msg;
   if (solution.success && !solution.outdated) {
     last_x_ = sol_out.at("X_optm");
@@ -565,9 +566,10 @@ void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
   last_x_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()) =
     f2g_(last_x_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()))[0];
 
-  auto x_ref_global = sol_in.at("X_optm_ref");
+  const auto & x_ref = sol_in.at("X_ref");
+  auto x_ref_global = x_ref;
   x_ref_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()) =
-    f2g_(sol_in.at("X_optm_ref")(Slice(XIndex::PX, XIndex::YAW + 1), Slice()))[0];
+    f2g_(x_ref(Slice(XIndex::PX, XIndex::YAW + 1), Slice()))[0];
   traj_lock.unlock();
 
   const auto mpc_solve_duration_ms = solution.solve_time_nanosec / 1e6;
@@ -583,12 +585,12 @@ void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
     auto & pose = mpc_vis_msg.poses.emplace_back();
     pose.header.stamp = now;
     pose.header.frame_id = "map";
-    pose.pose.position.x = x_ref_global(XIndex::PX, i).get_elements()[0];
-    pose.pose.position.y = x_ref_global(XIndex::PY, i).get_elements()[0];
-    pose.pose.position.z = 0.0;
+    pose.pose.position.x = last_x_global(XIndex::PX, i).get_elements()[0];
+    pose.pose.position.y = last_x_global(XIndex::PY, i).get_elements()[0];
+    pose.pose.position.z = (last_x_(XIndex::PY, i) * sin(bank(i))).get_elements()[0];
     pose.pose.orientation = tf2::toMsg(
       utils::TransformHelper::quaternion_from_heading(
-        x_ref_global(XIndex::YAW, i).get_elements()[0]));
+        last_x_global(XIndex::YAW, i).get_elements()[0]));
   }
   mpc_vis_pub_->publish(mpc_vis_msg);
 
@@ -601,12 +603,12 @@ void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
     auto & pose = ref_vis_msg.poses.emplace_back();
     pose.header.stamp = now;
     pose.header.frame_id = "map";
-    pose.pose.position.x = last_x_global(XIndex::PX, i).get_elements()[0];
-    pose.pose.position.y = last_x_global(XIndex::PY, i).get_elements()[0];
-    pose.pose.position.z = 0.0;
+    pose.pose.position.x = x_ref_global(XIndex::PX, i).get_elements()[0];
+    pose.pose.position.y = x_ref_global(XIndex::PY, i).get_elements()[0];
+    pose.pose.position.z = (x_ref(XIndex::PY, i) * sin(bank(i))).get_elements()[0];
     pose.pose.orientation = tf2::toMsg(
       utils::TransformHelper::quaternion_from_heading(
-        last_x_global(XIndex::YAW, i).get_elements()[0]));
+        x_ref_global(XIndex::YAW, i).get_elements()[0]));
   }
   ref_vis_pub_->publish(ref_vis_msg);
 

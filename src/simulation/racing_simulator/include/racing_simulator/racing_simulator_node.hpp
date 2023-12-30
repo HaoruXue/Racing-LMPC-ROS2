@@ -55,7 +55,7 @@ protected:
   RacingSimulator::SharedPtr simulator_ {};
   uint64_t sim_step_ {0};
   uint64_t lap_count_ {0};
-  tf2::Transform cg_to_baselink_ {};
+  TransformStamped cg_to_baselink_ {};
 
   utils::TransformHelper tf_helper_;
 

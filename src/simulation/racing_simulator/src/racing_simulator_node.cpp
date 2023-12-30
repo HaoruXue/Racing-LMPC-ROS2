@@ -15,6 +15,11 @@
 
 #include <base_vehicle_model/ros_param_loader.hpp>
 #include <single_track_planar_model/ros_param_loader.hpp>
+#ifdef ROS_DISTRO_GALACTIC
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
+#else
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#endif
 
 #include "racing_simulator/racing_simulator_node.hpp"
 #include "racing_simulator/ros_param_loader.hpp"
@@ -45,8 +50,10 @@ RacingSimulatorNode::RacingSimulatorNode(const rclcpp::NodeOptions & options)
   const auto & chassis_config = *(model_->get_base_config().chassis_config);
   const auto lr = chassis_config.wheel_base * chassis_config.cg_ratio;
   const auto lf = chassis_config.wheel_base - lr;
-  cg_to_baselink_.setOrigin(tf2::Vector3(-1.0 * lr, 0.0, 0.0));
-  cg_to_baselink_.setRotation(utils::TransformHelper::quaternion_from_heading(0.0));
+  tf2::Transform cg_to_baselink;
+  cg_to_baselink.setOrigin(tf2::Vector3(-1.0 * lr, 0.0, chassis_config.cg_height));
+  cg_to_baselink.setRotation(utils::TransformHelper::quaternion_from_heading(0.0));
+  cg_to_baselink_.transform = tf2::toMsg(cg_to_baselink);
 
   // initialize vehicle state message
   vehicle_state_msg_ = std::make_shared<mpclab_msgs::msg::VehicleStateMsg>();
@@ -246,6 +253,8 @@ void RacingSimulatorNode::on_state_update()
       "Waiting for vehicle actuation message.");
     return;
   }
+  const auto now = this->now();
+  vehicle_state_msg_->header.stamp = now;
   const auto last_x = simulator_->x().get_elements();
   const auto u = casadi::DM(
         {
@@ -285,8 +294,6 @@ void RacingSimulatorNode::on_state_update()
   }
 
   // update the vehicle state message
-  const auto now = this->now();
-  vehicle_state_msg_->header.stamp = now;
   update_vehicle_state_msg(x, frenet_pose, global_pose);
 
   // publish tf
@@ -303,7 +310,11 @@ void RacingSimulatorNode::on_state_update()
     map_to_cg.setRotation(utils::TransformHelper::quaternion_from_rpy(roll, 0.0, global_pose.yaw));
     // find the map to baselink transform
     // map_to_baselink_msg_->transform = tf2::toMsg(map_to_cg * cg_to_baselink_);
-    map_to_baselink_msg_->transform = tf2::toMsg(map_to_cg);
+    // map_to_baselink_msg_->transform = tf2::toMsg(map_to_cg);
+    // tf2::doTransform(tf2::toMsg(map_to_cg), map_to_baselink_msg_->transform, cg_to_baselink_);
+    TransformStamped map_to_cg_stamped;
+    map_to_cg_stamped.transform = tf2::toMsg(map_to_cg);
+    tf2::doTransform(cg_to_baselink_.transform, map_to_baselink_msg_->transform, map_to_cg_stamped);
     map_to_baselink_msg_->header.stamp = now;
     // publish the transforms
     tf_helper_.send_transform(*map_to_baselink_msg_);
@@ -313,7 +324,7 @@ void RacingSimulatorNode::on_state_update()
   nav_msgs::msg::Odometry odom;
   odom.header.stamp = now;
   odom.header.frame_id = "map";
-  odom.child_frame_id = "base_link";
+  odom.child_frame_id = "cg";
   odom.pose.pose.position.x = global_pose.position.x;
   odom.pose.pose.position.y = global_pose.position.y;
   odom.pose.pose.orientation =
