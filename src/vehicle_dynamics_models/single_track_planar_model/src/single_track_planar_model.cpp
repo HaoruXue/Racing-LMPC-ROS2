@@ -330,9 +330,8 @@ void SingleTrackPlanarModel::compile_dynamics()
     ((2 * Fx_rl) + (2 * Fx_fl) * cos(delta) - (2 * Fy_fl) * sin(delta) -
     0.5 * cd * rho * A * v_sq) + omega * vy;
   const auto vy_dot = 1.0 / m *
-    ((2 * Fy_rl) + (2 * Fy_fl) * cos(delta) + (2 * Fx_fl) * sin(delta) - m * GRAVITY *
-    (sin(bank))) -
-    omega * vx;
+    ((2 * Fy_rl) + (2 * Fy_fl) * cos(delta) + (2 * Fx_fl) * sin(delta)) -
+    omega * vx - GRAVITY * sin(bank);
 
   // global frame acceleration px_dot, py_dot
   auto px_dot = vx * cos(phi) - vy * sin(phi);
@@ -341,8 +340,13 @@ void SingleTrackPlanarModel::compile_dynamics()
 
   if (base_config_->modeling_config->use_frenet) {
     // convert to frenet frame
-    px_dot /= (1 - py * k);
-    phi_dot -= k * px_dot;
+    const auto k_banked = k * cos(bank);
+    px_dot /= (1 - py * k_banked);
+    phi_dot -= k_banked * px_dot;
+  } else {
+    phi_dot *= cos(bank);
+    px_dot = vx * cos(phi) - vy * sin(phi) * cos(bank);
+    py_dot = vx * sin(phi) + vy * cos(phi) * cos(bank);
   }
 
   const auto x_dot = vertcat(px_dot, py_dot, phi_dot, vx_dot, vy_dot, omega_dot);

@@ -207,7 +207,8 @@ void RacingSimulatorNode::update_vehicle_state_msg(
 {
   // calculate the frenet frame velocity
   const auto k = static_cast<double>(
-    track_->curvature_interpolation_function()(casadi::DM(frenet_pose.position.s))[0]);
+    track_->curvature_interpolation_function()(casadi::DM(frenet_pose.position.s))[0] *
+    cos(track_->bank_interpolation_function()(casadi::DM(frenet_pose.position.s))[0]));
   const auto vb = BodyVelocity2D{x[XIndex::VX], x[XIndex::VY], x[XIndex::VYAW]};
   auto vs = transform_velocity(vb, frenet_pose.yaw);
   vs.x /= (1.0 - k * frenet_pose.position.t);

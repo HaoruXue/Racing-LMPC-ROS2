@@ -129,10 +129,11 @@ RacingTrajectory::RacingTrajectory(const casadi::DM & traj)
     const auto xi = MX::sym("xi", 1, 1);
     const auto x0 = x_intp_(s_mod)[0];
     const auto y0 = y_intp_(s_mod)[0];
+    const auto bank0 = bank_intp_(s_mod)[0];
     const auto yaw0 = yaw_intp_(s_mod)[0];
-    const auto d_x = -1.0 * sin(yaw0) * t;
-    const auto d_y = cos(yaw0) * t;
-    const auto phi = utils::align_yaw<MX>(yaw0 + xi, 0.0);
+    const auto d_x = -1.0 * sin(yaw0) * t * cos(bank0);
+    const auto d_y = cos(yaw0) * t * cos(bank0);
+    const auto phi = utils::align_yaw<MX>(yaw0 + xi * cos(bank0), 0.0);
     const auto out = MX::vertcat({x0 + d_x, y0 + d_y, phi});
     frenet_to_global_ = Function("frenet_to_global", {MX::vertcat({s, t, xi})}, {out});
   }
@@ -175,12 +176,10 @@ RacingTrajectory::RacingTrajectory(const casadi::DM & traj)
     const auto x_out = x_intp_(s_out)[0];
     const auto y_out = y_intp_(s_out)[0];
     const auto yaw_out = yaw_intp_(s_out)[0];
+    const auto bank_out = bank_intp_(s_out)[0];
     const auto t_out = MX::hypot(x - x_out, y - y_out) * utils::lateral_sign<MX>(
-      MX::vertcat(
-        {x,
-          y}), MX::vertcat(
-        {x_out, y_out, yaw_out}));
-    const auto xi_out = utils::align_yaw<MX>(phi, yaw_out) - yaw_out;
+      MX::vertcat({x, y}), MX::vertcat({x_out, y_out, yaw_out})) / cos(bank_out);
+    const auto xi_out = (utils::align_yaw<MX>(phi, yaw_out) - yaw_out) / cos(bank_out);
     global_to_frenet_ = Function(
       "global_to_frenet", {MX::vertcat(
           {x, y, phi, s0,
