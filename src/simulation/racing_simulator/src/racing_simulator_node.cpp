@@ -73,11 +73,14 @@ RacingSimulatorNode::RacingSimulatorNode(const rclcpp::NodeOptions & options)
   }
   update_vehicle_state_msg(x0_vec, frenet_pose, global_pose);
 
+  // get node namespace
+  const std::string node_namespace = this->get_namespace();
+
   // initialize the map to base_link message
   if (config_->publish_tf) {
     map_to_baselink_msg_ = std::make_shared<TransformStamped>();
     map_to_baselink_msg_->header.frame_id = "map";
-    map_to_baselink_msg_->child_frame_id = "base_link";
+    map_to_baselink_msg_->child_frame_id = node_namespace + "base_link";
 
     tf2::Transform map_to_cg;
     map_to_cg.setOrigin(tf2::Vector3(global_pose.position.x, global_pose.position.y, 0.0));
@@ -88,7 +91,7 @@ RacingSimulatorNode::RacingSimulatorNode(const rclcpp::NodeOptions & options)
   // build the visualization polygons
   if (config_->visualize_vehicle) {
     vehicle_polygon_msg_ = std::make_shared<PolygonStamped>();
-    vehicle_polygon_msg_->header.frame_id = "base_link";
+    vehicle_polygon_msg_->header.frame_id = node_namespace + "base_link";
     const auto half_width = chassis_config.b / 2.0;
     const casadi::DM pts = casadi::DM::reshape(
       casadi::DM(

@@ -30,6 +30,12 @@ def generate_launch_description():
         description="Path to the vehicle urdf file",
     )
 
+    namespace_arg = DeclareLaunchArgument(
+        name="namespace",
+        default_value="",
+        description="Namespace of the vehicle",
+    )
+
     robot_description = ParameterValue(
         Command(["xacro ", LaunchConfiguration("urdf_path")]), value_type=str
     )
@@ -39,10 +45,14 @@ def generate_launch_description():
     robot_state_publisher_node = Node(
         package="robot_state_publisher",
         executable="robot_state_publisher",
+        name="robot_state_publisher",
+        namespace=LaunchConfiguration("namespace"),
+        output="screen",
         parameters=[
             use_sim_time,
             {
                 "robot_description": robot_description,
+                "frame_prefix": LaunchConfiguration("namespace"),
             },
         ],
     )
@@ -51,6 +61,7 @@ def generate_launch_description():
         package="vehicle_state_visualizer",
         executable="vehicle_state_visualizer_node_exe",
         name="vehicle_state_visualizer_node",
+        namespace=LaunchConfiguration("namespace"),
         output="screen",
         parameters=[
             use_sim_time,
@@ -66,6 +77,7 @@ def generate_launch_description():
         [
             vehicle_name_arg,
             declare_use_sim_time_cmd,
+            namespace_arg,
             robot_state_publisher_node,
             vehicle_state_visualizer_node,
         ]
