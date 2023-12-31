@@ -16,6 +16,12 @@
 #include "racing_trajectory/racing_trajectory.hpp"
 #include "lmpc_utils/utils.hpp"
 
+#ifdef USE_JIT
+#define JIT true
+#else
+#define JIT false
+#endif
+
 namespace lmpc
 {
 namespace vehicle_model
@@ -157,6 +163,7 @@ RacingTrajectory::RacingTrajectory(const casadi::DM & traj)
     global_to_frenet_sol_ = casadi::nlpsol(
       "global_to_frenet_sol", "sqpmethod", qp,
           {
+            {"jit", JIT},
             {"print_time", false},
             {"print_header", false},
             {"print_iteration", false},

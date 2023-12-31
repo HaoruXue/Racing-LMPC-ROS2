@@ -23,6 +23,13 @@ elseif(${ROS_DISTRO} STREQUAL "humble")
   add_compile_definitions(ROS_DISTRO_HUMBLE)
 endif()
 
+# add a JIT flag
+option(USE_JIT "Use JIT compilation" ON)
+if(USE_JIT)
+  add_compile_definitions(USE_JIT)
+  message(NOTICE "Using JIT for global <> frenet frame conversion. Turn it off if JIT is not available on your platform.")
+endif()
+
 # Require that dependencies from package.xml be available.
 find_package(casadi REQUIRED)
 find_package(TBB REQUIRED)
