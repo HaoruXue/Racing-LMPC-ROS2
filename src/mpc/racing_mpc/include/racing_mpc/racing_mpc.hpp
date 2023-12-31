@@ -64,6 +64,7 @@ protected:
   casadi::DM scale_u_;
   casadi::Function align_abscissa_;
   casadi::Opti opti_;
+  casadi::MX cost_;
 
   // optimization variables
   casadi::MX X_;  // all the states, scaled
