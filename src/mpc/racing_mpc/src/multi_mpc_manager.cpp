@@ -35,7 +35,7 @@ MPCSolverNodeInterface::MPCSolverNodeInterface(rclcpp::Node * node, const std::s
   name_(name),
   is_ready_(false)
 {
-  client_ = node_->create_client<lmpc_msgs::srv::SolveMPC>("solve_mpc");
+  client_ = node_->create_client<lmpc_msgs::srv::SolveMPC>(name + "/solve_mpc");
   // wait for the service to be available
   while (!client_->wait_for_service(std::chrono::milliseconds(100))) {
     if (!rclcpp::ok()) {

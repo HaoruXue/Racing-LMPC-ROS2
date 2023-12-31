@@ -71,7 +71,7 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
     mpc_manager_config->mpcs.push_back(
       std::make_shared<MPCSolverNodeInterface>(
         this,
-        "MPC " + std::to_string(i)));
+        "mpc_" + std::to_string(i)));
   }
   mpc_manager_ = std::make_unique<MultiMPCManager>(*mpc_manager_config);
 

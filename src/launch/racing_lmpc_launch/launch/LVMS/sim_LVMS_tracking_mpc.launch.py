@@ -129,7 +129,9 @@ def generate_launch_description():
                         ),
                     },
                 ],
-                remappings=[],
+                remappings=[
+                    ("solve_mpc", "mpc_0/solve_mpc"),
+                ],
                 # prefix=['taskset -c 22,23'],
                 emulate_tty=True,
             ),
