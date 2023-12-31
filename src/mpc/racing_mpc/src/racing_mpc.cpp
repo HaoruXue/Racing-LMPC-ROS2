@@ -503,12 +503,12 @@ void RacingMPC::build_boundary_constraint(casadi::MX & cost)
   const auto margin = config_->margin + model_->get_base_config().chassis_config->b / 2.0;
   if (enable_boundary_slack) {
     boundary_slack_ = opti_.variable(1);
+    const auto boundary_slack = boundary_slack_ * scale_x_(XIndex::PY);
     opti_.subject_to(
       opti_.bounded(
-        bound_right_ + margin - boundary_slack_, PY,
-        bound_left_ - margin + boundary_slack_));
-    opti_.subject_to(boundary_slack_ >= 0.0);
-    cost += MX::mtimes({boundary_slack_.T(), config_->q_boundary, boundary_slack_});
+        bound_right_ + margin, PY + boundary_slack,
+        bound_left_ - margin));
+    cost += MX::mtimes({boundary_slack.T(), config_->q_boundary, boundary_slack});
   } else {
     opti_.subject_to(opti_.bounded(bound_right_ + margin, PY, bound_left_ - margin));
   }

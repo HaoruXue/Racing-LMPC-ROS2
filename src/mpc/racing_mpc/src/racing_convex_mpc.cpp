@@ -190,7 +190,9 @@ RacingConvexMPC::RacingConvexMPC(
       f += SX::mtimes({ui.T(), config_->R, ui});
       f += SX::mtimes({dui.T(), config_->R_d, dui});
       if (enable_boundary_slack_) {
-        f += SX::mtimes({boundary_slack_(i).T(), config_->q_boundary, boundary_slack_(i)});
+        f += SX::mtimes(
+          {(boundary_slack_(i) * SX(scale_x_(XIndex::PY))).T(),
+            config_->q_boundary, boundary_slack_(i) * SX(scale_x_(XIndex::PY))});
       }
     }
     f += xi_base(XIndex::PY) * xi_base(XIndex::PY) * SX(config_->q_contour);
@@ -226,7 +228,7 @@ RacingConvexMPC::RacingConvexMPC(
     if (i < static_cast<casadi_int>(config_->N - 1)) {
       const auto PY = X_(XIndex::PY, i) * SX(scale_x_(XIndex::PY));
       if (enable_boundary_slack_) {
-        g_vec.push_back(PY + boundary_slack_(i));
+        g_vec.push_back(PY + boundary_slack_(i) * SX(scale_x_(XIndex::PY)));
         lbg_vec.push_back(bound_right_(i) + margin);
         ubg_vec.push_back(bound_left_(i) - margin);
       } else {

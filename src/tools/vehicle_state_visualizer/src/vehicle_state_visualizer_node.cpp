@@ -32,7 +32,8 @@ VehicleStateVisualizerNode::VehicleStateVisualizerNode(const rclcpp::NodeOptions
 
   // last_wheel_spin_state_ = std::make_shared<sensor_msgs::msg::JointState>();
   // last_wheel_spin_state_->name = {
-  //   "fl_tyre_rotate_joint", "fr_tyre_rotate_joint", "rl_tyre_rotate_joint", "rr_tyre_rotate_joint"};
+  //   "fl_tyre_rotate_joint", "fr_tyre_rotate_joint",
+  //   "rl_tyre_rotate_joint", "rr_tyre_rotate_joint"};
   // last_wheel_spin_state_->position = {0.0, 0.0, 0.0, 0.0};
 
   vehicle_actuation_sub_ = this->create_subscription<mpclab_msgs::msg::VehicleActuationMsg>(
