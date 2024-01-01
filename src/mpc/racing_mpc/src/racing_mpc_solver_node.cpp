@@ -52,6 +52,7 @@ RacingMPCSolverNode::RacingMPCSolverNode(const rclcpp::NodeOptions & options)
   } else {
     throw std::invalid_argument("Invalid interface: " + config->interface);
   }
+  mpc_->init();
 
   // initialize mpc solve service
   solve_mpc_srv_ = create_service<SolveMPC>(
