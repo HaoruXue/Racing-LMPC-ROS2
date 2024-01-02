@@ -110,7 +110,15 @@ RacingMPC::RacingMPC(
     const auto s_opts = casadi::Dict{};
     opti_.solver("osqp", p_opts, s_opts);
   }
+}
 
+const RacingMPCConfig & RacingMPC::get_config() const
+{
+  return *config_.get();
+}
+
+bool RacingMPC::init()
+{
   // set up track boundary constraint
   build_boundary_constraint(cost_);
 
@@ -122,69 +130,8 @@ RacingMPC::RacingMPC(
     build_tracking_cost(cost_);
   }
 
-  // --- model constraints ---
-  for (size_t i = 0; i < config_->N - 1; i++) {
-    const auto xi = X_(Slice(), i) * scale_x_;
-    const auto xip1 = X_(Slice(), i + 1) * scale_x_;
-    const auto ui = U_(Slice(), i) * scale_u_;
-    const auto ti = T_ref_(i);
-    const auto k = curvatures_(i);
-    const auto bank_angle = bank_angle_(i);
-    const auto dui = dU_(Slice(), i) * scale_u_;
-
-    // primal bounds
-    opti_.subject_to(opti_.bounded(config_->x_min, xi, config_->x_max));
-    opti_.subject_to(opti_.bounded(config_->u_min, ui, config_->u_max));
-    opti_.subject_to(opti_.bounded(config_->du_min, dui, config_->du_max));
-
-    if (full_dynamics) {
-      // use full dynamics for dynamics constraints
-      const auto xip1_pred =
-        model_->discrete_dynamics()(
-        {{"x", xi}, {"u", ui}, {"k", k}, {"dt", ti},
-          {"bank", bank_angle}}).at("xip1");
-      opti_.subject_to(xip1_pred - xip1 == 0);
-    } else {
-      // or use linearlized dynamics for dynamics constraints
-      const auto xi_ref = X_ref_(Slice(), i);
-      const auto ui_ref = U_ref_(Slice(), i);
-      const auto AB =
-        model_->discrete_dynamics_jacobian()(
-        {{"x", xi_ref}, {"u", ui_ref}, {"k", k},
-          {"dt", ti}, {"bank", bank_angle}});
-      const auto x_ref_p1 =
-        model_->discrete_dynamics()(
-        {{"x", xi_ref}, {"u", ui_ref}, {"k", k}, {"dt", ti},
-          {"bank", bank_angle}}).at(
-        "xip1");
-      const auto & A = AB.at("A");
-      const auto & B = AB.at("B");
-      const auto & g = AB.at("g");
-      opti_.subject_to(xip1 - (MX::mtimes(A, xi) + MX::mtimes(B, ui) + g) == 0);
-    }
-
-    // control rate constraints
-    MX uim1;
-    if (i == 0) {
-      uim1 = u_ic_;
-    } else {
-      uim1 = U_(Slice(), i - 1) * scale_u_;
-    }
-    opti_.subject_to(uim1 + dui * ti == ui);
-  }
-
-  // --- initial state constraint ---
-  const auto x0 = X_(Slice(), 0) * scale_x_;
-  opti_.subject_to(x0 == x_ic_);
-}
-
-const RacingMPCConfig & RacingMPC::get_config() const
-{
-  return *config_.get();
-}
-
-bool RacingMPC::init()
-{
+  build_dynamics_constraint();
+  build_initial_constraint();
   opti_.minimize(cost_);
   return true;
 }
@@ -253,6 +200,9 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
   opti_.set_value(curvatures_, curvatures);
   opti_.set_value(vel_ref_, vel_ref);
   opti_.set_value(bank_angle_, bank_angle);
+
+  // initialize subclass variables
+  init_solve(in, out, stats);
 
   // solve problem
   try {
@@ -374,6 +324,8 @@ void RacingMPC::build_tracking_cost(casadi::MX & cost)
   cost += x_base_N(XIndex::PY) * x_base_N(XIndex::PY) * config_->q_contour * 10.0;
   cost += x_base_N(XIndex::YAW) * x_base_N(XIndex::YAW) * config_->q_heading * 10.0;
   cost += dv * dv * config_->q_vel * 10.0;
+  cost += x_base_N(XIndex::VY) * x_base_N(XIndex::VY) * config_->q_vy * 10.0;
+  cost += x_base_N(XIndex::VYAW) * x_base_N(XIndex::VYAW) * config_->q_vyaw * 10.0;
 }
 
 void RacingMPC::build_lmpc_cost(casadi::MX & cost)
@@ -431,6 +383,77 @@ void RacingMPC::build_boundary_constraint(casadi::MX & cost)
   } else {
     opti_.subject_to(opti_.bounded(bound_right_ + margin, PY, bound_left_ - margin));
   }
+}
+
+void RacingMPC::build_dynamics_constraint()
+{
+  using casadi::MX;
+  using casadi::Slice;
+  // --- model constraints ---
+  for (size_t i = 0; i < config_->N - 1; i++) {
+    const auto xi = X_(Slice(), i) * scale_x_;
+    const auto xip1 = X_(Slice(), i + 1) * scale_x_;
+    const auto ui = U_(Slice(), i) * scale_u_;
+    const auto ti = T_ref_(i);
+    const auto k = curvatures_(i);
+    const auto bank_angle = bank_angle_(i);
+    const auto dui = dU_(Slice(), i) * scale_u_;
+
+    // primal bounds
+    opti_.subject_to(opti_.bounded(config_->x_min, xi, config_->x_max));
+    opti_.subject_to(opti_.bounded(config_->u_min, ui, config_->u_max));
+    opti_.subject_to(opti_.bounded(config_->du_min, dui, config_->du_max));
+
+    if (full_dynamics_) {
+      // use full dynamics for dynamics constraints
+      const auto xip1_pred =
+        model_->discrete_dynamics()(
+        {{"x", xi}, {"u", ui}, {"k", k}, {"dt", ti},
+          {"bank", bank_angle}}).at("xip1");
+      opti_.subject_to(xip1_pred - xip1 == 0);
+    } else {
+      // or use linearlized dynamics for dynamics constraints
+      const auto xi_ref = X_ref_(Slice(), i);
+      const auto ui_ref = U_ref_(Slice(), i);
+      const auto AB =
+        model_->discrete_dynamics_jacobian()(
+        {{"x", xi_ref}, {"u", ui_ref}, {"k", k},
+          {"dt", ti}, {"bank", bank_angle}});
+      const auto x_ref_p1 =
+        model_->discrete_dynamics()(
+        {{"x", xi_ref}, {"u", ui_ref}, {"k", k}, {"dt", ti},
+          {"bank", bank_angle}}).at(
+        "xip1");
+      const auto & A = AB.at("A");
+      const auto & B = AB.at("B");
+      const auto & g = AB.at("g");
+      opti_.subject_to(xip1 - (MX::mtimes(A, xi) + MX::mtimes(B, ui) + g) == 0);
+    }
+
+    // control rate constraints
+    MX uim1;
+    if (i == 0) {
+      uim1 = u_ic_;
+    } else {
+      uim1 = U_(Slice(), i - 1) * scale_u_;
+    }
+    opti_.subject_to(uim1 + dui * ti == ui);
+  }
+}
+void RacingMPC::build_initial_constraint()
+{
+  using casadi::MX;
+  using casadi::Slice;
+  // --- initial state constraint ---
+  const auto x0 = X_(Slice(), 0) * scale_x_;
+  opti_.subject_to(x0 == x_ic_);
+}
+
+void RacingMPC::init_solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::Dict & stats)
+{
+  (void) in;
+  (void) out;
+  (void) stats;
 }
 }  // namespace racing_mpc
 }  // namespace mpc

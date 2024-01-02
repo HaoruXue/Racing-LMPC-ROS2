@@ -60,3 +60,13 @@ rosdep-install:
 	sudo apt update
 	rosdep update --include-eol-distros
 	rosdep install -y -r --rosdistro ${ROS_DISTRO} --ignore-src --from-paths .
+
+.PHONY: clean-jit
+clean-jit:
+	@read -p "Are you sure you want to remove all files starting with 'jit_'? [y/N] " answer; \
+	if [ "$$answer" != "${answer#[Yy]}" ] ; then \
+		echo "Removing files..."; \
+		find . -type f -name 'jit_*' -exec echo "Removing: {}" \; -exec rm {} \;; \
+	else \
+		echo "Operation canceled."; \
+	fi

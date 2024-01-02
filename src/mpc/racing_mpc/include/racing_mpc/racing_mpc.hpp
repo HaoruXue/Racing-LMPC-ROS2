@@ -100,6 +100,10 @@ protected:
   void build_tracking_cost(casadi::MX & cost);
   void build_lmpc_cost(casadi::MX & cost);
   void build_boundary_constraint(casadi::MX & cost);
+  void build_dynamics_constraint();
+  void build_initial_constraint();
+
+  virtual void init_solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::Dict & stats);
 };
 }  // namespace racing_mpc
 }  // namespace mpc

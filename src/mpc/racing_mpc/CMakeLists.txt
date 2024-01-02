@@ -40,6 +40,7 @@ set(${PROJECT_NAME}_SRC
   src/racing_mpc_solver_node.cpp
   src/multi_mpc_manager.cpp
   src/racing_convex_mpc.cpp
+  src/racing_follow_mpc.cpp  
 )
 
 set(${PROJECT_NAME}_HEADER
@@ -50,6 +51,7 @@ set(${PROJECT_NAME}_HEADER
   include/racing_mpc/racing_mpc_solver_node.hpp
   include/racing_mpc/multi_mpc_manager.hpp
   include/racing_mpc/racing_convex_mpc.hpp
+  include/racing_mpc/racing_follow_mpc.hpp
 )
 
 ament_auto_add_library(${PROJECT_NAME} SHARED

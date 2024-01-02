@@ -25,6 +25,7 @@ ament_auto_find_build_dependencies(REQUIRED
 rosidl_generate_interfaces(${PROJECT_NAME}
     "msg/TrajectoryCommand.msg"
     "msg/MPCTelemetry.msg"
+    "msg/BehaviorStratergy.msg"
     "srv/SolveMPC.srv"
     DEPENDENCIES builtin_interfaces std_msgs
 )

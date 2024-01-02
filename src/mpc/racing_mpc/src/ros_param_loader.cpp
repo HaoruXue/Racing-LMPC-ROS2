@@ -83,6 +83,7 @@ RacingMPCConfig::SharedPtr load_parameters(rclcpp::Node * node)
           casadi::DM(declare_double("racing_mpc.q_vy")),
           casadi::DM(declare_double("racing_mpc.q_vyaw")),
           casadi::DM(declare_double("racing_mpc.q_boundary")),
+          casadi::DM(declare_double("racing_mpc.q_follow")),
           casadi::DM::reshape(
             R, static_cast<casadi_int>(sqrt(R.size1())),
             static_cast<casadi_int>(sqrt(R.size1()))),

@@ -114,7 +114,7 @@ def generate_launch_description():
                     "racing_mpc_node.delay_step": 0,
                 },
             ],
-            remappings=[],
+            remappings=[("oppo_prediction", f"/vehicle_{(i+1)%num_vehicles}/ego_prediction")],
             # prefix=['taskset -c 22,23'],
             emulate_tty=True,
         )

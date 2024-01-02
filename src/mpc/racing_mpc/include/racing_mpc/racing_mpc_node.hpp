@@ -28,6 +28,7 @@
 
 #include <mpclab_msgs/msg/vehicle_state_msg.hpp>
 #include <mpclab_msgs/msg/vehicle_actuation_msg.hpp>
+#include <mpclab_msgs/msg/prediction_msg.hpp>
 #include <lmpc_msgs/msg/trajectory_command.hpp>
 #include <lmpc_msgs/msg/mpc_telemetry.hpp>
 
@@ -76,6 +77,7 @@ protected:
   std::shared_mutex speed_limit_mutex_;
   std::shared_mutex speed_scale_mutex_;
   std::shared_mutex last_sol_mutex_;
+  std::shared_mutex oppo_prediction_mutex_;
 
   casadi::DM last_x_;
   casadi::DM last_u_;
@@ -92,6 +94,8 @@ protected:
 
   mpclab_msgs::msg::VehicleStateMsg::SharedPtr vehicle_state_msg_ {};
   mpclab_msgs::msg::VehicleActuationMsg::SharedPtr vehicle_actuation_msg_ {};
+  mpclab_msgs::msg::PredictionMsg::SharedPtr oppo_prediction_msg_ {};
+  lmpc_msgs::msg::TrajectoryCommand::SharedPtr trajectory_command_msg_ {};
 
   // publishers (to world/simulator)
   rclcpp::Publisher<mpclab_msgs::msg::VehicleActuationMsg>::SharedPtr vehicle_actuation_pub_ {};
@@ -100,10 +104,12 @@ protected:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr ss_vis_pub_ {};
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr ego_pub_ {};
   rclcpp::Publisher<lmpc_msgs::msg::MPCTelemetry>::SharedPtr mpc_telemetry_pub_ {};
+  rclcpp::Publisher<mpclab_msgs::msg::PredictionMsg>::SharedPtr ego_prediction_pub_ {};
 
   // subscribers (from world/simulator)
   rclcpp::Subscription<mpclab_msgs::msg::VehicleStateMsg>::SharedPtr vehicle_state_sub_ {};
   rclcpp::Subscription<lmpc_msgs::msg::TrajectoryCommand>::SharedPtr trajectory_command_sub_ {};
+  rclcpp::Subscription<mpclab_msgs::msg::PredictionMsg>::SharedPtr oppo_prediction_sub_ {};
 
   // timers
   rclcpp::TimerBase::SharedPtr step_timer_;
@@ -112,6 +118,7 @@ protected:
   rclcpp::CallbackGroup::SharedPtr state_callback_group_;
   rclcpp::CallbackGroup::SharedPtr trajectory_command_callback_group_;
   rclcpp::CallbackGroup::SharedPtr step_timer_callback_group_;
+  rclcpp::CallbackGroup::SharedPtr oppo_prediction_callback_group_;
 
   // parameter callback handle
   OnSetParametersCallbackHandle::SharedPtr callback_handle_;
@@ -119,6 +126,7 @@ protected:
   // callbacks
   void on_new_state(const mpclab_msgs::msg::VehicleStateMsg::SharedPtr msg);
   void on_new_trajectory_command(const lmpc_msgs::msg::TrajectoryCommand::SharedPtr msg);
+  void on_new_oppo_prediction(const mpclab_msgs::msg::PredictionMsg::SharedPtr msg);
   void on_step_timer();
   rcl_interfaces::msg::SetParametersResult on_set_parameters(
     std::vector<rclcpp::Parameter> const & parameters);

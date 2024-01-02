@@ -63,6 +63,7 @@ struct RacingMPCConfig
   casadi::DM q_vy;  // lateral velocity cost-to-go
   casadi::DM q_vyaw;  // yaw rate cost-to-go
   casadi::DM q_boundary;  // boundary slack cost
+  casadi::DM q_follow;  // follow cost
   casadi::DM R;  // control cost-to-go
   casadi::DM R_d;  // control rate cost-to-go
   casadi::DM x_max;  // primal upper bound

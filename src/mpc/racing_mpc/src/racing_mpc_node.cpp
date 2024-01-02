@@ -62,6 +62,7 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   full_config->max_cpu_time = 10.0;
   full_config->max_iter = 1000;
   mpc_full_ = std::make_shared<RacingMPC>(full_config, model_, true);
+  mpc_full_->init();
 
   // prepare MPC manager
   auto mpc_manager_config = std::make_shared<MultiMPCManagerConfig>();
@@ -99,6 +100,8 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   ss_vis_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("ss_visualization", 1);
   ego_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("ego_visualization", 1);
   mpc_telemetry_pub_ = this->create_publisher<lmpc_msgs::msg::MPCTelemetry>("mpc_telemetry", 1);
+  ego_prediction_pub_ = this->create_publisher<mpclab_msgs::msg::PredictionMsg>(
+    "ego_prediction", 1);
 
   // initialize the subscribers
   // state subscription is on a separate callback group
@@ -121,6 +124,15 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
     "lmpc_trajectory_command", 1, std::bind(
       &RacingMPCNode::on_new_trajectory_command, this,
       std::placeholders::_1), trajectory_command_sub_options);
+
+  oppo_prediction_callback_group_ = this->create_callback_group(
+    rclcpp::CallbackGroupType::MutuallyExclusive);
+  rclcpp::SubscriptionOptions oppo_prediction_sub_options;
+  oppo_prediction_sub_options.callback_group = oppo_prediction_callback_group_;
+  oppo_prediction_sub_ = this->create_subscription<mpclab_msgs::msg::PredictionMsg>(
+    "oppo_prediction", 1, std::bind(
+      &RacingMPCNode::on_new_oppo_prediction, this,
+      std::placeholders::_1), oppo_prediction_sub_options);
 
   // initialize the parameter callback
   callback_handle_ = add_on_set_parameters_callback(
@@ -150,6 +162,7 @@ void RacingMPCNode::on_new_state(const mpclab_msgs::msg::VehicleStateMsg::Shared
 void RacingMPCNode::on_new_trajectory_command(
   const lmpc_msgs::msg::TrajectoryCommand::SharedPtr msg)
 {
+  trajectory_command_msg_ = msg;
   std::shared_lock<std::shared_mutex> speed_limit_lock(speed_limit_mutex_);
   const auto current_speed_limit = speed_limit_;
   speed_limit_lock.unlock();
@@ -164,6 +177,13 @@ void RacingMPCNode::on_new_trajectory_command(
     set_speed_scale(msg->velocity_profile_scale);
   }
   change_trajectory(msg->trajectory_index);
+}
+
+void RacingMPCNode::on_new_oppo_prediction(
+  const mpclab_msgs::msg::PredictionMsg::SharedPtr msg)
+{
+  std::unique_lock<std::shared_mutex> lock(oppo_prediction_mutex_);
+  oppo_prediction_msg_ = msg;
 }
 
 void RacingMPCNode::on_step_timer()
@@ -391,6 +411,24 @@ void RacingMPCNode::on_step_timer()
   sol_in["curvatures"] = curvature_ref;
   sol_in["vel_ref"] = vel_ref;
   sol_in["bank_angle"] = bank_angle;
+
+  // prepare the follow MPC inputs
+  if (trajectory_command_msg_ && oppo_prediction_msg_ &&
+    trajectory_command_msg_->behavior_stratergy.behavior_stratergy ==
+    lmpc_msgs::msg::BehaviorStratergy::FOLLOW)
+  {
+    sol_in["follow_distance"] = trajectory_command_msg_->behavior_stratergy.follow_distance;
+    sol_in["opponent_X_ref"] = DM::horzcat(
+          {
+            oppo_prediction_msg_->s,
+            oppo_prediction_msg_->x_tran,
+            oppo_prediction_msg_->e_psi,
+            oppo_prediction_msg_->v_x,
+            oppo_prediction_msg_->v_y,
+            oppo_prediction_msg_->psidot
+          }
+    ).T();
+  }
 
   // solve the mpc
   // solve the first time with full dynamics
@@ -648,6 +686,21 @@ void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
   // publish the telemetry message
   telemetry_msg.header.stamp = now;
   mpc_telemetry_pub_->publish(telemetry_msg);
+
+  // publish the prediction message
+  mpclab_msgs::msg::PredictionMsg prediction_msg;
+  prediction_msg.header.stamp = now;
+  prediction_msg.header.frame_id = "map";
+  prediction_msg.s = last_x_(XIndex::PX, Slice()).get_elements();
+  prediction_msg.x_tran = last_x_(XIndex::PY, Slice()).get_elements();
+  prediction_msg.e_psi = last_x_(XIndex::YAW, Slice()).get_elements();
+  prediction_msg.v_x = last_x_(XIndex::VX, Slice()).get_elements();
+  prediction_msg.v_y = last_x_(XIndex::VY, Slice()).get_elements();
+  prediction_msg.psidot = last_x_(XIndex::VYAW, Slice()).get_elements();
+  prediction_msg.x = last_x_global(XIndex::PX, Slice()).get_elements();
+  prediction_msg.y = last_x_global(XIndex::PY, Slice()).get_elements();
+  prediction_msg.psi = last_x_global(XIndex::YAW, Slice()).get_elements();
+  ego_prediction_pub_->publish(prediction_msg);
 
   if (!jitted_) {
     if (solution.success) {

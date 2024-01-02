@@ -21,6 +21,7 @@
 #include "vehicle_model_factory/vehicle_model_factory.hpp"
 #include "racing_mpc/racing_mpc.hpp"
 #include "racing_mpc/racing_convex_mpc.hpp"
+#include "racing_mpc/racing_follow_mpc.hpp"
 
 namespace lmpc
 {
@@ -49,6 +50,9 @@ RacingMPCSolverNode::RacingMPCSolverNode(const rclcpp::NodeOptions & options)
   } else if (config->interface == "opti") {
     mpc_ = std::make_unique<RacingMPC>(config, model, full_dynamics);
     RCLCPP_INFO(this->get_logger(), "Using Racing MPC (opti).");
+  } else if (config->interface == "opti_follow") {
+    mpc_ = std::make_unique<RacingFollowMPC>(config, model, full_dynamics);
+    RCLCPP_INFO(this->get_logger(), "Using Racing Follow MPC (opti).");
   } else {
     throw std::invalid_argument("Invalid interface: " + config->interface);
   }
