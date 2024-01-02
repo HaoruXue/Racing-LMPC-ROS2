@@ -33,7 +33,7 @@ RacingFollowMPC::RacingFollowMPC(
   const bool & full_dynamics)
 : RacingMPC(mpc_config, model, full_dynamics),
   opponent_X_ref_(opti_.parameter(model_->nx(), config_->N)),
-  follow_distance_(opti_.parameter(1, 1)),
+  follow_distance_(opti_.parameter(1, config_->N)),
   q_follow_(opti_.parameter(1, 1)),
   q_vel_(opti_.parameter(1, 1))
 {
@@ -70,8 +70,33 @@ void RacingFollowMPC::init_solve(
 
   const auto & total_length = in.at("total_length");
   const auto x_ic = in.at("x_ic");
+  auto opponent_X_ref = in.at("opponent_X_ref");
+  opponent_X_ref(XIndex::PX, Slice()) = align_abscissa_(
+    casadi::DMDict{{"abscissa_1", opponent_X_ref(XIndex::PX, Slice())},
+      {"abscissa_2", DM::ones(1, config_->N) * x_ic(XIndex::PX)},
+      {"total_distance", DM::ones(1, config_->N) * total_length}}).at("abscissa_1_aligned");
+  auto x_offset = DM::zeros(model_->nx());
+  x_offset(XIndex::PX) = x_ic(XIndex::PX);
+  opponent_X_ref = opponent_X_ref - x_offset;
+  opti_.set_value(opponent_X_ref_, opponent_X_ref);
+
+  auto X_ref = in.at("X_ref");
+  X_ref(XIndex::PX, Slice()) = align_abscissa_(
+    casadi::DMDict{{"abscissa_1", X_ref(XIndex::PX, Slice())},
+      {"abscissa_2", DM::ones(1, config_->N) * x_ic(XIndex::PX)},
+      {"total_distance", DM::ones(1, config_->N) * total_length}}).at("abscissa_1_aligned");
+  X_ref = X_ref - x_offset;
+
   if (in.count("follow_distance")) {
-    opti_.set_value(follow_distance_, in.at("follow_distance"));
+    const auto target_gap = static_cast<double>(in.at("follow_distance"));
+    const auto current_gap = (opponent_X_ref(XIndex::PX, Slice()) - X_ref(XIndex::PX, Slice())).get_elements();
+    auto follow_distance = DM::zeros(1, config_->N);
+    for (casadi_int i = 0; i < static_cast<casadi_int>(config_->N); i++) {
+      // TODO(haoru): make max diff a parameter
+      follow_distance(i) = std::clamp(target_gap, current_gap[i] - 1.0, current_gap[i] + 1.0);
+    }
+
+    opti_.set_value(follow_distance_, follow_distance);
     opti_.set_value(q_follow_, config_->q_follow);
     opti_.set_value(q_vel_, 0.0);
   } else {
@@ -79,15 +104,6 @@ void RacingFollowMPC::init_solve(
     opti_.set_value(q_follow_, 0.0);
     opti_.set_value(q_vel_, config_->q_vel);
   }
-  auto opponent_X_ref = in.at("opponent_X_ref");
-  opponent_X_ref(XIndex::PX, Slice()) = align_abscissa_(
-    casadi::DMDict{{"abscissa_1", opponent_X_ref(XIndex::PX, Slice())},
-      {"abscissa_2", DM::ones(1, config_->N) * x_ic(XIndex::PX)},
-      {"total_distance", DM::ones(1, config_->N) * total_length}}).at("abscissa_1_aligned");
-  auto x_offset = casadi::DM::zeros(model_->nx());
-  x_offset(XIndex::PX) = x_ic(XIndex::PX);
-  opponent_X_ref = opponent_X_ref - x_offset;
-  opti_.set_value(opponent_X_ref_, opponent_X_ref);
 }
 
 void RacingFollowMPC::build_following_cost(casadi::MX & cost)
@@ -117,7 +133,7 @@ void RacingFollowMPC::build_following_cost(casadi::MX & cost)
     cost += MX::mtimes({dui.T(), config_->R_d, dui});
 
     const auto px_i = X_(XIndex::PX, i) * scale_x_(XIndex::PX);
-    const auto px_follow_i = opponent_X_ref_(XIndex::PX, i) - follow_distance_;
+    const auto px_follow_i = opponent_X_ref_(XIndex::PX, i) - follow_distance_(i);
     const auto d_px_i = px_i - px_follow_i;
     cost += d_px_i * d_px_i * q_follow_;
   }
@@ -128,7 +144,7 @@ void RacingFollowMPC::build_following_cost(casadi::MX & cost)
   const auto x_base_N = model_->to_base_state()(casadi::MXDict{{"x", xN}, {"u", uN}}).at("x_out");
   const auto dv = x_base_N(XIndex::VX) - vel_ref_(config_->N - 1);
   const auto px_N = X_(XIndex::PX, config_->N - 1) * scale_x_(XIndex::PX);
-  const auto px_follow_N = opponent_X_ref_(XIndex::PX, config_->N - 1) - follow_distance_;
+  const auto px_follow_N = opponent_X_ref_(XIndex::PX, config_->N - 1) - follow_distance_(config_->N - 1);
   const auto d_px_N = px_N - px_follow_N;
   cost += x_base_N(XIndex::PY) * x_base_N(XIndex::PY) * config_->q_contour * 10.0;
   cost += x_base_N(XIndex::YAW) * x_base_N(XIndex::YAW) * config_->q_heading * 10.0;

@@ -434,6 +434,7 @@ void RacingMPCNode::on_step_timer()
   // solve the first time with full dynamics
   if (!mpc_full_->solved()) {
     RCLCPP_INFO(this->get_logger(), "Get initial solution with full dynamics.");
+    const auto full_solve_start = std::chrono::high_resolution_clock::now();
     mpc_full_->solve(sol_in, sol_out, stats);
     last_x_ = sol_out["X_optm"];
     last_u_ = sol_out["U_optm"];
@@ -441,6 +442,10 @@ void RacingMPCNode::on_step_timer()
     if (config_->learning) {
       last_convex_combi_ = sol_out["convex_combi_optm"];
     }
+    const auto full_solve_duration = std::chrono::high_resolution_clock::now() - full_solve_start;
+    RCLCPP_INFO(
+      this->get_logger(), "Full nonlinear solve took %f ms.",
+      std::chrono::duration_cast<std::chrono::nanoseconds>(full_solve_duration).count() / 1e6);
     if (mpc_full_->solved()) {
       RCLCPP_INFO(this->get_logger(), "Solved the first time with full dynamics.");
     } else {
