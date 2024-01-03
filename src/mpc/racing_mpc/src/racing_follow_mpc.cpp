@@ -89,7 +89,8 @@ void RacingFollowMPC::init_solve(
 
   if (in.count("follow_distance")) {
     const auto target_gap = static_cast<double>(in.at("follow_distance"));
-    const auto current_gap = (opponent_X_ref(XIndex::PX, Slice()) - X_ref(XIndex::PX, Slice())).get_elements();
+    const auto current_gap =
+      (opponent_X_ref(XIndex::PX, Slice()) - X_ref(XIndex::PX, Slice())).get_elements();
     auto follow_distance = DM::zeros(1, config_->N);
     for (casadi_int i = 0; i < static_cast<casadi_int>(config_->N); i++) {
       // TODO(haoru): make max diff a parameter
@@ -112,7 +113,6 @@ void RacingFollowMPC::build_following_cost(casadi::MX & cost)
   using casadi::Slice;
 
   // --- MPC stage cost ---
-  const auto x0 = X_(Slice(), 0) * scale_x_;
   for (size_t i = 0; i < config_->N - 1; i++) {
     const auto xi = X_(Slice(), i) * scale_x_;
     const auto ui = U_(Slice(), i - 1) * scale_u_;
@@ -132,7 +132,7 @@ void RacingFollowMPC::build_following_cost(casadi::MX & cost)
     cost += MX::mtimes({ui.T(), config_->R, ui});
     cost += MX::mtimes({dui.T(), config_->R_d, dui});
 
-    const auto px_i = X_(XIndex::PX, i) * scale_x_(XIndex::PX);
+    const auto px_i = x_base(XIndex::PX) * scale_x_(XIndex::PX);
     const auto px_follow_i = opponent_X_ref_(XIndex::PX, i) - follow_distance_(i);
     const auto d_px_i = px_i - px_follow_i;
     cost += d_px_i * d_px_i * q_follow_;
@@ -144,7 +144,8 @@ void RacingFollowMPC::build_following_cost(casadi::MX & cost)
   const auto x_base_N = model_->to_base_state()(casadi::MXDict{{"x", xN}, {"u", uN}}).at("x_out");
   const auto dv = x_base_N(XIndex::VX) - vel_ref_(config_->N - 1);
   const auto px_N = X_(XIndex::PX, config_->N - 1) * scale_x_(XIndex::PX);
-  const auto px_follow_N = opponent_X_ref_(XIndex::PX, config_->N - 1) - follow_distance_(config_->N - 1);
+  const auto px_follow_N = opponent_X_ref_(XIndex::PX, config_->N - 1) - follow_distance_(
+    config_->N - 1);
   const auto d_px_N = px_N - px_follow_N;
   cost += x_base_N(XIndex::PY) * x_base_N(XIndex::PY) * config_->q_contour * 10.0;
   cost += x_base_N(XIndex::YAW) * x_base_N(XIndex::YAW) * config_->q_heading * 10.0;

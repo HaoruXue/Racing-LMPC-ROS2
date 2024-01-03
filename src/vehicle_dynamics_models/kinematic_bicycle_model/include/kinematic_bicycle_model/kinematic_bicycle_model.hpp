@@ -51,9 +51,8 @@ enum XIndex : casadi_int
 
 enum UIndex : casadi_int
 {
-  FD = 0,
-  FB = 1,
-  STEER = 2
+  F_LON = 0,
+  STEER = 1
 };
 
 class KinematicBicycleModel final : public base_vehicle_model::BaseVehicleModel

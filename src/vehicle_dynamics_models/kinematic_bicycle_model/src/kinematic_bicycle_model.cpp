@@ -43,92 +43,24 @@ size_t KinematicBicycleModel::nx() const
 
 size_t KinematicBicycleModel::nu() const
 {
-  return 3;
+  return 2;
 }
 
 void KinematicBicycleModel::add_nlp_constraints(casadi::Opti & opti, const casadi::MXDict & in)
 {
-  const auto & u = in.at("u");
-  const auto fd = u(UIndex::FD);
-  const auto fb = u(UIndex::FB);
-  const auto delta = u(UIndex::STEER);
-  const auto & t = in.at("t");
-  const auto & Fd_max = get_config().Fd_max;
-  const auto & Fb_max = get_config().Fb_max;
-  const auto & delta_max = get_base_config().steer_config->max_steer;
-  const auto & Td = get_config().Td;
-  const auto & Tb = get_config().Tb;
-  const auto Tdelta = get_base_config().steer_config->max_steer /
-    get_base_config().steer_config->max_steer_rate;
-
-  if (in.count("x")) {
-    const auto & x = in.at("x");
-    const auto & xip1 = in.at("xip1");
-    const auto k =
-      base_config_->modeling_config->use_frenet ? in.at("k") : casadi::MX::sym("k", 1, 1);
-    const auto v = x(XIndex::V);
-    // const auto & mu = get_config().mu;
-    const auto & P_max = get_config().P_max;
-
-    // dynamics constraint
-    auto xip1_temp = casadi::MX(xip1);
-    if (base_config_->modeling_config->use_frenet) {
-      xip1_temp(XIndex::PX) =
-        lmpc::utils::align_abscissa<casadi::MX>(
-        xip1_temp(XIndex::PX), x(XIndex::PX),
-        in.at("track_length"));
-    } else {
-      xip1_temp(XIndex::YAW) =
-        lmpc::utils::align_yaw<casadi::MX>(xip1_temp(XIndex::YAW), x(XIndex::YAW));
-    }
-
-    // const auto out1 = dynamics_({{"x", x}, {"u", u}, {"k", k}});
-    const auto xip1_pred = discrete_dynamics_({{"x", x}, {"u", u}, {"k", k}, {"dt", t}}).at("xip1");
-    opti.subject_to(xip1_pred - xip1_temp == 0);
-
-    // tyre constraints
-    // const auto Fx_ij = out1.at("Fx_ij");
-    // const auto Fy_ij = out1.at("Fy_ij");
-    // const auto Fz_ij = out1.at("Fz_ij");
-    // for (int i = 0; i < 2; i++) {
-    //   opti.subject_to(pow(Fx_ij(i) / (mu * Fz_ij(i)), 2) +
-    //   pow(Fy_ij(i) / (mu * Fz_ij(i)), 2) <= 1);
-    // }
-
-    // static actuator cconstraint
-    opti.subject_to(v * fd <= P_max);
-    // opti.subject_to(v >= 0.0);
-    opti.subject_to(opti.bounded(0.0, fd, Fd_max));
-    opti.subject_to(opti.bounded(Fb_max, fb, 0.0));
-    opti.subject_to(pow(fd * fb, 2) <= 1.0);
-    opti.subject_to(opti.bounded(-1.0 * delta_max, delta, delta_max));
-  }
-
-  // dynamic actuator constraint
-  if (in.count("uip1")) {
-    const auto & uip1 = in.at("uip1");
-    opti.subject_to((uip1(UIndex::FD) - fd) / t <= Fd_max / Td);
-    opti.subject_to((uip1(UIndex::FB) - fb) / t >= Fb_max / Tb);
-    opti.subject_to(
-      opti.bounded(
-        -delta_max / Tdelta, (uip1(UIndex::STEER) - delta) / t,
-        delta_max / Tdelta));
-  }
 }
 
 void KinematicBicycleModel::calc_lon_control(
   const casadi::DMDict & in, double & throttle,
   double & brake_kpa) const
 {
-  const auto u = in.at("u").get_elements();
-  const auto & fd = u[UIndex::FD];
-  const auto & fb = u[UIndex::FB];
-  throttle = 0.0;
-  brake_kpa = 0.0;
-  if (abs(fd) > abs(fb)) {
-    throttle = calc_throttle(fd);
+  const auto u_lon = static_cast<double>(in.at("u")(UIndex::F_LON));
+  if (u_lon > 0.0) {
+    throttle = calc_throttle(u_lon);
+    brake_kpa = 0.0;
   } else {
-    brake_kpa = calc_brake(fb);
+    throttle = 0.0;
+    brake_kpa = calc_brake(u_lon);
   }
 }
 
@@ -147,14 +79,14 @@ void KinematicBicycleModel::compile_dynamics()
   const auto x = SX::sym("x", nx());
   const auto u = SX::sym("u", nu());
   const auto k = SX::sym("k", 1);  // curvature for frenet frame
+  const auto bank = SX::sym("bank", 1);  // bank angle
   const auto dt = SX::sym("dt", 1);  // time step
 
   const auto px = x(XIndex::PX);
   const auto py = x(XIndex::PY);
   const auto phi = x(XIndex::YAW);  // yaw
   const auto v = x(XIndex::V);  // body frame velocity magnitude
-  const auto fd = u(UIndex::FD);  // drive force
-  const auto fb = u(UIndex::FB);  // brake forcce
+  const auto f_lon = u(UIndex::F_LON);  // longitudinal control force
   const auto delta = u(UIndex::STEER);  // front wheel angle
   const auto v_sq = v * v;
 
@@ -189,63 +121,30 @@ void KinematicBicycleModel::compile_dynamics()
 
   // compute kinematics
   const auto beta = atan(lr * tan(delta) / l);
-  const auto S = l / tan(delta);  // rear axle turn radius
-  const auto R = S / cos(beta);  // cg turn radius
-  auto phi_dot = v / R;
+  auto phi_dot = v * cos(beta) * tan(delta) / l;
   const auto global_yaw_rate = phi_dot;
   auto px_dot = v * cos(beta + phi);
   auto py_dot = v * sin(beta + phi);
-
-  // longitudinal tyre force Fx (eq. 4a, 4b)
-  // TODO(haoru): consider differential
-  const auto Fx_f = 0.5 * kd_f * fd + 0.5 * kb_f * fb - 0.5 * fr * m * GRAVITY * lr / l;
-  const auto Fx_fl = Fx_f;
-  // const auto Fx_fr = Fx_f;
-  const auto Fx_r = 0.5 * (1 - kd_f) * fd + 0.5 * (1.0 - kb_f) * fb - 0.5 * fr * m * GRAVITY * lf /
-    l;
-  const auto Fx_rl = Fx_r;
-  // const auto Fx_rr = Fx_r;
-
-  // longitudinal acceleration (eq. 9)
-  const auto ax = (fd + fb - 0.5 * cd * A * v_sq - fr * m * GRAVITY) / m;
+  const auto ax = (f_lon * 1000.0 - 0.5 * cd * A * v_sq - fr * m * GRAVITY) / m;
   const auto v_dot = ax;
 
-  // vertical tyre force Fz (eq. 7a, 7b)
-  const auto Fz_f = 0.5 * m * GRAVITY * lr / (lf + lr) - 0.5 * hcog / (lf + lr) * m * ax + 0.25 *
-    cl_f * rho * A * v_sq;
-  const auto Fz_fl = Fz_f;
-  // const auto Fz_fr = Fz_f;
-  const auto Fz_r = 0.5 * m * GRAVITY * lr / (lf + lr) + 0.5 * hcog / (lf + lr) * m * ax + 0.25 *
-    cl_r * rho * A * v_sq;
-  const auto Fz_rl = Fz_r;
-  // const auto Fz_rr = Fz_r;
-
-
-  if (base_config_->modeling_config->use_frenet) {
-    // convert to frenet frame
-    px_dot /= (1 - py * k);
-    phi_dot -= k * px_dot;
-  }
-
   const auto x_dot = vertcat(px_dot, py_dot, phi_dot, v_dot);
-  const auto Fx_ij = vertcat(Fx_fl, Fx_rl);
-  const auto Fz_ij = vertcat(Fz_fl, Fz_rl);
 
   dynamics_ = casadi::Function(
     "kinematic_bicycle_model",
-    {x, u, k},
-    {x_dot, Fx_ij, Fz_ij},
-    {"x", "u", "k"},
-    {"x_dot", "Fx_ij", "Fz_ij"});
+    {x, u, k, bank},
+    {x_dot},
+    {"x", "u", "k", "bank"},
+    {"x_dot"});
 
   const auto Ac = SX::jacobian(x_dot, x);
   const auto Bc = SX::jacobian(x_dot, u);
 
   dynamics_jacobian_ = casadi::Function(
     "kinematic_bicycle_model_jacobian",
-    {x, u, k},
+    {x, u, k, bank},
     {Ac, Bc},
-    {"x", "u", "k"},
+    {"x", "u", "k", "bank"},
     {"A", "B"}
   );
 
@@ -254,11 +153,11 @@ void KinematicBicycleModel::compile_dynamics()
   const auto & integrator_type = get_base_config().modeling_config->integrator_type;
   if (integrator_type == base_vehicle_model::IntegratorType::RK4) {
     xip1 = utils::rk4_function(nx(), nu(), dynamics_)(
-      casadi::SXDict{{"x", x}, {"u", u}, {"k", k}, {"dt", dt}}
+      casadi::SXDict{{"x", x}, {"u", u}, {"k", k}, {"dt", dt}, {"bank", bank}}
     ).at("xip1");
   } else if (integrator_type == base_vehicle_model::IntegratorType::EULER) {
     xip1 = utils::euler_function(nx(), nu(), dynamics_)(
-      casadi::SXDict{{"x", x}, {"u", u}, {"k", k}, {"dt", dt}}
+      casadi::SXDict{{"x", x}, {"u", u}, {"k", k}, {"dt", dt}, {"bank", bank}}
     ).at("xip1");
   } else {
     throw std::runtime_error("unsupported integrator type");
@@ -266,10 +165,10 @@ void KinematicBicycleModel::compile_dynamics()
 
   discrete_dynamics_ = casadi::Function(
     "single_track_planar_model_discrete_dynamics",
-    {x, u, k, dt},
-    {xip1, Fx_ij, Fz_ij},
-    {"x", "u", "k", "dt"},
-    {"xip1", "Fx_ij", "Fz_ij"});
+    {x, u, k, dt, bank},
+    {xip1},
+    {"x", "u", "k", "dt", "bank"},
+    {"xip1"});
 
   const auto Ad = SX::jacobian(xip1, x);
   const auto Bd = SX::jacobian(xip1, u);
@@ -304,6 +203,30 @@ void KinematicBicycleModel::compile_dynamics()
     )};
   from_base_state_ = casadi::Function(
     "from_base_state", {base_x_sym, base_u_sym}, {derived_x}, {"x", "u"}, {"x_out"});
+
+  const auto u_derived_sym = SX::sym("u", nu());
+  const auto u_base_out = SX::vertcat(
+        {
+          SX::if_else(
+            u_derived_sym(UIndex::F_LON) > 0.0, u_derived_sym(UIndex::F_LON),
+            0.0),
+          SX::if_else(
+            u_derived_sym(UIndex::F_LON) < 0.0, u_derived_sym(UIndex::F_LON),
+            0.0),
+          u_derived_sym(UIndex::STEER)
+        });
+  const auto u_derived_out = SX::vertcat(
+        {
+          SX::if_else(
+            abs(base_u_sym(base_vehicle_model::UIndex::FD)) >
+            abs(base_u_sym(base_vehicle_model::UIndex::FB)),
+            base_u_sym(base_vehicle_model::UIndex::FD), base_u_sym(base_vehicle_model::UIndex::FB)),
+          base_u_sym(base_vehicle_model::UIndex::STEER)
+        });
+  to_base_control_ = casadi::Function(
+    "to_base_control", {x, u_derived_sym}, {u_base_out}, {"x", "u"}, {"u_out"});
+  from_base_control_ = casadi::Function(
+    "from_base_control", {base_x_sym, base_u_sym}, {u_derived_out}, {"x", "u"}, {"u_out"});
 }
 }  // namespace kinematic_bicycle_model
 }  // namespace vehicle_model

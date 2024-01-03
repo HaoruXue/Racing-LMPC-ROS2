@@ -41,8 +41,14 @@ def generate_launch_description():
     )
     track_file_folder = get_share_file("racing_trajectory", "test_data", "putnam")
 
-    vd_model_name = DeclareLaunchArgument(
-        "vehicle_model_name",
+    sim_vd_model_name = DeclareLaunchArgument(
+        "sim_vehicle_model_name",
+        default_value="single_track_planar_model",
+        description="vehicle model name",
+    )
+
+    mpc_vd_model_name = DeclareLaunchArgument(
+        "mpc_vehicle_model_name",
         default_value="single_track_planar_model",
         description="vehicle model name",
     )
@@ -50,7 +56,8 @@ def generate_launch_description():
     return LaunchDescription(
         [
             declare_use_sim_time_cmd,
-            vd_model_name,
+            sim_vd_model_name,
+            mpc_vd_model_name,
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(
                     os.path.join(
@@ -101,7 +108,7 @@ def generate_launch_description():
                     use_sim_time,
                     {
                         "racing_mpc_node.vehicle_model_name": LaunchConfiguration(
-                            "vehicle_model_name"
+                            "mpc_vehicle_model_name"
                         ),
                         "racing_mpc_node.default_traj_idx": 10,
                         "racing_mpc_node.traj_folder": track_file_folder,
@@ -125,7 +132,7 @@ def generate_launch_description():
                     use_sim_time,
                     {
                         "racing_mpc_node.vehicle_model_name": LaunchConfiguration(
-                            "vehicle_model_name"
+                            "mpc_vehicle_model_name"
                         ),
                     },
                 ],

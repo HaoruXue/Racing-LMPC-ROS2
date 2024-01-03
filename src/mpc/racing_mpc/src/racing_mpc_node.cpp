@@ -52,6 +52,7 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   jitted_(!config_->jit),
   f2g_(track_->frenet_to_global_function().map(config_->N)),
   to_base_control_(model_->to_base_control().map(config_->N - 1)),
+  to_base_state_(model_->to_base_state().map(config_->N)),
   ss_manager_(std::make_unique<SafeSetManager>(config_->max_lap_stored)),
   ss_recorder_(std::make_unique<SafeSetRecorder>(
       *ss_manager_, config_->record,
@@ -598,14 +599,18 @@ void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
       "MPC could not be solved.");
     telemetry_msg.solved = false;
   }
-  telemetry_msg.state = last_x_.get_elements();
+  const auto last_x_base =
+    to_base_state_(
+    casadi::DMDict{{"x", last_x_},
+      {"u", casadi::DM::horzcat({last_u_, last_u_(Slice(), -1)})}}).at("x_out");
+  telemetry_msg.state = last_x_base.get_elements();
   telemetry_msg.control =
     to_base_control_(
     casadi::DMDict{{"x",
       last_x_(Slice(), Slice(0, static_cast<casadi_int>(config_->N - 1)))},
       {"u", last_u_}}).at("u_out").get_elements();
 
-  auto last_x_global = last_x_;
+  auto last_x_global = last_x_base;
   last_x_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()) =
     f2g_(last_x_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()))[0];
 
@@ -630,7 +635,7 @@ void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
     pose.header.frame_id = "map";
     pose.pose.position.x = last_x_global(XIndex::PX, i).get_elements()[0];
     pose.pose.position.y = last_x_global(XIndex::PY, i).get_elements()[0];
-    pose.pose.position.z = (last_x_(XIndex::PY, i) * sin(bank(i))).get_elements()[0];
+    pose.pose.position.z = (last_x_base(XIndex::PY, i) * sin(bank(i))).get_elements()[0];
     pose.pose.orientation = tf2::toMsg(
       utils::TransformHelper::quaternion_from_heading(
         last_x_global(XIndex::YAW, i).get_elements()[0]));
@@ -696,12 +701,12 @@ void RacingMPCNode::mpc_solve_callback(MultiMPCSolution solution)
   mpclab_msgs::msg::PredictionMsg prediction_msg;
   prediction_msg.header.stamp = now;
   prediction_msg.header.frame_id = "map";
-  prediction_msg.s = last_x_(XIndex::PX, Slice()).get_elements();
-  prediction_msg.x_tran = last_x_(XIndex::PY, Slice()).get_elements();
-  prediction_msg.e_psi = last_x_(XIndex::YAW, Slice()).get_elements();
-  prediction_msg.v_x = last_x_(XIndex::VX, Slice()).get_elements();
-  prediction_msg.v_y = last_x_(XIndex::VY, Slice()).get_elements();
-  prediction_msg.psidot = last_x_(XIndex::VYAW, Slice()).get_elements();
+  prediction_msg.s = last_x_base(XIndex::PX, Slice()).get_elements();
+  prediction_msg.x_tran = last_x_base(XIndex::PY, Slice()).get_elements();
+  prediction_msg.e_psi = last_x_base(XIndex::YAW, Slice()).get_elements();
+  prediction_msg.v_x = last_x_base(XIndex::VX, Slice()).get_elements();
+  prediction_msg.v_y = last_x_base(XIndex::VY, Slice()).get_elements();
+  prediction_msg.psidot = last_x_base(XIndex::VYAW, Slice()).get_elements();
   prediction_msg.x = last_x_global(XIndex::PX, Slice()).get_elements();
   prediction_msg.y = last_x_global(XIndex::PY, Slice()).get_elements();
   prediction_msg.psi = last_x_global(XIndex::YAW, Slice()).get_elements();

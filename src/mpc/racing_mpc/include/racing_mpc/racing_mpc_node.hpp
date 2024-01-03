@@ -86,6 +86,7 @@ protected:
   casadi::Function f2g_;
   casadi::Function discrete_dynamics_ {};
   casadi::Function to_base_control_ {};
+  casadi::Function to_base_state_ {};
 
   // LMPC
   SafeSetManager::UniquePtr ss_manager_;
