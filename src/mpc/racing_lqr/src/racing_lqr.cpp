@@ -30,10 +30,11 @@ namespace racing_lqr
 {
 RacingLQR::RacingLQR(
   RacingLQRConfig::SharedPtr mpc_config,
-  SingleTrackPlanarModel::SharedPtr model)
+  BaseVehicleModel::SharedPtr model)
 : config_(mpc_config), model_(model),
   c2d_(utils::c2d_function(model_->nx(), model_->nu(), config_->dt)),
-  rk4_(utils::rk4_function(model_->nx(), model_->nu(), model_->dynamics()))
+  rk4_(utils::rk4_function(model_->nx(), model_->nu(), model_->dynamics())),
+  lqr_solved_(false)
 {
 }
 
@@ -51,6 +52,10 @@ void RacingLQR::solve(const casadi::DMDict & in, casadi::DMDict & out)
   const auto & x_ic = in.at("x_ic");
   const auto & X_ref = in.at("X_ref");
   const auto & U_ref = in.at("U_ref");
+  const auto & curvatures = in.at("curvatures");
+  const auto & bank_angle = in.at("bank_angle");
+  //TODO(David): add curavture and bank angle input
+  // currently sol_in has no x_ic, X_ref, and U_ref
 
   auto P = casadi::DMVector(config_->N, config_->Qf);
   auto K = casadi::DMVector(config_->N - 1, DM::zeros(model_->nu(), model_->nx()));
@@ -59,7 +64,7 @@ void RacingLQR::solve(const casadi::DMDict & in, casadi::DMDict & out)
   for (int k = config_->N - 2; k >= 0; k--) {
     // obtain linearlized continuous dynamics
     const auto dyn_jac = model_->dynamics_jacobian()(
-      casadi::DMDict{{"x", X_ref(Slice(), k)}, {"u", U_ref(Slice(), k)}});
+      casadi::DMDict{{"x", X_ref(Slice(), k)}, {"u", U_ref(Slice(), k)}, {"k", curvatures(Slice(), k)}, {"bank", bank_angle(Slice(), k)}});  // TODO(David): pass curvature and bank angle here
     const auto & Ac = dyn_jac.at("A");
     const auto & Bc = dyn_jac.at("B");
 
@@ -93,12 +98,19 @@ void RacingLQR::solve(const casadi::DMDict & in, casadi::DMDict & out)
   out["u"] = U_optm(Slice(), 0);
   out["U_optm"] = U_optm;
   out["X_optm"] = X_optm;
+  lqr_solved_ = true;
 }
 
-SingleTrackPlanarModel & RacingLQR::get_model()
+BaseVehicleModel & RacingLQR::get_model()
 {
   return *model_;
 }
+
+bool RacingLQR::get_solved()
+{
+  return lqr_solved_;
+}
+
 }  // namespace racing_lqr
 }  // namespace mpc
 }  // namespace lmpc

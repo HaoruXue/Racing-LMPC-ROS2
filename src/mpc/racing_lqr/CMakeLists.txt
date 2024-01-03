@@ -34,6 +34,7 @@ ament_auto_find_build_dependencies(REQUIRED
 set(${PROJECT_NAME}_SRC
   src/racing_lqr.cpp
   src/ros_param_loader.cpp
+  src/racing_lqr_node.cpp
 )
 
 set(${PROJECT_NAME}_HEADER

@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <vector>
+#include <string>
 
 #include <casadi/casadi.hpp>
 
@@ -27,6 +28,12 @@ namespace mpc
 {
 namespace racing_lqr
 {
+enum RacingLQRStepMode
+{
+  STEP,
+  CONTINUOUS
+};
+
 struct RacingLQRConfig
 {
   typedef std::shared_ptr<RacingLQRConfig> SharedPtr;
@@ -36,6 +43,11 @@ struct RacingLQRConfig
   casadi::DM Q;  // state cost-to-go
   casadi::DM R;  // control cost-to-go
   casadi::DM Qf;  // final state cost
+
+  RacingLQRStepMode step_mode = RacingLQRStepMode::STEP;
+
+  double max_vel_ref_diff;  // max velocity reference difference
+
 };
 }  // namespace racing_lqr
 }  // namespace mpc

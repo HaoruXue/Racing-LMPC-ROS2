@@ -35,6 +35,11 @@ using lmpc::vehicle_model::single_track_planar_model::SingleTrackPlanarModelConf
   using lmpc::vehicle_model::single_track_planar_model::XIndex;
 using lmpc::vehicle_model::single_track_planar_model::UIndex;
 
+using lmpc::vehicle_model::base_vehicle_model::BaseVehicleModelConfig;
+using lmpc::vehicle_model::base_vehicle_model::BaseVehicleModel;
+//using lmpc::vehicle_model::base_vehicle_model::XIndex;
+//using lmpc::vehicle_model::base_vehicle_model::UIndex;
+
 class RacingLQR
 {
 public:
@@ -43,18 +48,20 @@ public:
 
   explicit RacingLQR(
     RacingLQRConfig::SharedPtr mpc_config,
-    SingleTrackPlanarModel::SharedPtr model);
+    BaseVehicleModel::SharedPtr model);
   const RacingLQRConfig & get_config() const;
 
   void solve(const casadi::DMDict & in, casadi::DMDict & out);
 
-  SingleTrackPlanarModel & get_model();
+  BaseVehicleModel & get_model();
+  bool get_solved();
 
 protected:
   RacingLQRConfig::SharedPtr config_ {};
-  SingleTrackPlanarModel::SharedPtr model_ {};
+  BaseVehicleModel::SharedPtr model_ {};
   casadi::Function c2d_;
   casadi::Function rk4_;
+  bool lqr_solved_;
 };
 }  // namespace racing_lqr
 }  // namespace mpc

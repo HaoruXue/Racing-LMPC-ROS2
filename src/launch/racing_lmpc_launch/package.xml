@@ -15,6 +15,7 @@
 
   <depend>rclcpp</depend>
   <exec_depend>racing_mpc</exec_depend>
+  <exec_depend>racing_lqr</exec_depend>
   <exec_depend>racing_trajectory</exec_depend>
   <exec_depend>racing_simulator</exec_depend>
   <exec_depend>foxglove_bridge</exec_depend>
