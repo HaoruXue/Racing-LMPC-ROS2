@@ -277,7 +277,7 @@ void SingleTrackPlanarModel::compile_dynamics()
   // const auto Fx_rr = Fx_r;
 
   // longitudinal acceleration (eq. 9)
-  const auto ax = (fd + fb - 0.5 * cd * A * v_sq - fr * N) / m;
+  const auto ax = (fd + fb - 0.5 * cd * rho * A * v_sq - fr * N) / m;
 
   // vertical tyre force Fz (eq. 7a, 7b)
   const auto Fz_f = 0.5 * N * lr / (lf + lr) - 0.5 * hcog / (lf + lr) * m * ax + 0.25 *

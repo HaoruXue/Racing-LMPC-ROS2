@@ -48,6 +48,8 @@ size_t KinematicBicycleModel::nu() const
 
 void KinematicBicycleModel::add_nlp_constraints(casadi::Opti & opti, const casadi::MXDict & in)
 {
+(void) opti;
+(void) in;
 }
 
 void KinematicBicycleModel::calc_lon_control(
@@ -90,14 +92,10 @@ void KinematicBicycleModel::compile_dynamics()
   const auto delta = u(UIndex::STEER);  // front wheel angle
   const auto v_sq = v * v;
 
-  const auto & kd_f = get_base_config().powertrain_config->kd;
-  const auto & kb_f = get_base_config().front_brake_config->bias;  // front brake force bias
   const auto & m = get_base_config().chassis_config->total_mass;  // mass of car
   const auto & l = get_base_config().chassis_config->wheel_base;  // wheelbase
   const auto lr = get_base_config().chassis_config->cg_ratio * l;  // cg to front axle
-  const auto lf = l - lr;  // cg to rear axle
   const auto & fr = get_base_config().chassis_config->fr;  // rolling resistance coefficient
-  const auto & hcog = get_base_config().chassis_config->cg_height;  // center of gravity height
   const auto & cl_f = get_base_config().aero_config->cl_f;  // downforce coefficient at front
   const auto & cl_r = get_base_config().aero_config->cl_r;  // downforce coefficient at rear
   const auto & rho = get_base_config().aero_config->air_density;  // air density
@@ -125,7 +123,7 @@ void KinematicBicycleModel::compile_dynamics()
   const auto global_yaw_rate = phi_dot;
   auto px_dot = v * cos(beta + phi);
   auto py_dot = v * sin(beta + phi);
-  const auto ax = (f_lon * 1000.0 - 0.5 * cd * A * v_sq - fr * m * GRAVITY) / m;
+  const auto ax = (f_lon * 1000.0 - 0.5 * cd * rho * A * v_sq - fr * m * GRAVITY) / m;
   const auto v_dot = ax;
 
   const auto x_dot = vertcat(px_dot, py_dot, phi_dot, v_dot);
