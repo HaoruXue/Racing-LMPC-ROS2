@@ -16,7 +16,7 @@
       num_cycle_to_switch: 10
       max_extrapolate_horizon: 60
 
-      q_contour: 6.6
+      q_contour: 0.6
       q_heading: 0.6
       q_boundary: 20.0 # track boundary slack cost. 0 to disable (hard constraint)
       q_follow: 0.2
