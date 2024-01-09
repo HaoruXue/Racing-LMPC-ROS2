@@ -103,7 +103,7 @@ def generate_launch_description():
                         "racing_mpc_node.vehicle_model_name": LaunchConfiguration(
                             "vehicle_model_name"
                         ),
-                        "racing_mpc_node.default_traj_idx": 27,
+                        "racing_mpc_node.default_traj_idx": 20,
                         "racing_mpc_node.traj_folder": track_file_folder,
                         "racing_mpc_node.velocity_profile_scale": 1.0,
                         "racing_mpc_node.delay_step": 0,
