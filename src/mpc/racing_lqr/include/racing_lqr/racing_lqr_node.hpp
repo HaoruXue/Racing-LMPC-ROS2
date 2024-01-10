@@ -55,8 +55,8 @@ public:
   explicit RacingLQRNode(const rclcpp::NodeOptions & options);
 
 protected:
-  double dt_;
   RacingLQRConfig::SharedPtr config_ {};
+  double dt_;
   RacingTrajectoryMap::SharedPtr tracks_ {};
   int traj_idx_ = 0;
   int delay_step_ = 0;

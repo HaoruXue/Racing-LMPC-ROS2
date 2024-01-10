@@ -43,8 +43,8 @@ namespace racing_lqr
 {
 RacingLQRNode::RacingLQRNode(const rclcpp::NodeOptions & options)
 : rclcpp::Node("racing_lqr_node", options),
-  dt_(utils::declare_parameter<double>(this, "racing_lqr_node.dt")),
   config_(lmpc::mpc::racing_lqr::load_parameters(this)),
+  dt_(config_->dt),
   tracks_(std::make_shared<RacingTrajectoryMap>(
       utils::declare_parameter<std::string>(
         this, "racing_lqr_node.traj_folder")

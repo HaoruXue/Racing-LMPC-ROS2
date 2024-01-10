@@ -42,7 +42,7 @@ RacingLQRConfig::SharedPtr load_parameters(rclcpp::Node * node)
       return lmpc::utils::declare_parameter<std::string>(node, name);
     };
 
-  const auto step_mode_str = declare_string("racing_mpc.step_mode");
+  const auto step_mode_str = declare_string("racing_lqr.step_mode");
   RacingLQRStepMode step_mode;
   if (step_mode_str == "step") {
     step_mode = RacingLQRStepMode::STEP;
