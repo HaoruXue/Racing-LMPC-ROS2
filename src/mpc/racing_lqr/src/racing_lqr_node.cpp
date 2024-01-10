@@ -140,15 +140,15 @@ RacingLQRNode::RacingLQRNode(const rclcpp::NodeOptions & options)
   callback_handle_ = add_on_set_parameters_callback(
     std::bind(&RacingLQRNode::on_set_parameters, this, std::placeholders::_1));
 
-  // if (config_->step_mode == RacingLQRStepMode::CONTINUOUS) {
-  //   // initialize the timers
-  //   step_timer_callback_group_ = this->create_callback_group(
-  //     rclcpp::CallbackGroupType::MutuallyExclusive);
-  //   step_timer_ = this->create_wall_timer(
-  //     std::chrono::duration<double>(dt_), std::bind(
-  //       &RacingLQRNode::on_step_timer,
-  //       this), step_timer_callback_group_);
-  // }
+  if (config_->step_mode == RacingLQRStepMode::CONTINUOUS) {
+    // initialize the timers
+    step_timer_callback_group_ = this->create_callback_group(
+      rclcpp::CallbackGroupType::MutuallyExclusive);
+    step_timer_ = this->create_wall_timer(
+      std::chrono::duration<double>(dt_), std::bind(
+        &RacingLQRNode::on_step_timer,
+        this), step_timer_callback_group_);
+  }
 }
 
 // not sure this needed, step_mode not in lqr_config. vehicle_state_sub_ depends on this function

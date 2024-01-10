@@ -38,6 +38,19 @@ RacingLQRConfig::SharedPtr load_parameters(rclcpp::Node * node)
   auto declare_int = [&](const char * name) {
       return lmpc::utils::declare_parameter<int64_t>(node, name);
     };
+  auto declare_string = [&](const char * name) {
+      return lmpc::utils::declare_parameter<std::string>(node, name);
+    };
+
+  const auto step_mode_str = declare_string("racing_mpc.step_mode");
+  RacingLQRStepMode step_mode;
+  if (step_mode_str == "step") {
+    step_mode = RacingLQRStepMode::STEP;
+  } else if (step_mode_str == "continuous") {
+    step_mode = RacingLQRStepMode::CONTINUOUS;
+  } else {
+    throw std::invalid_argument("Invalid step mode: " + step_mode_str);
+  }
 
   return std::make_shared<RacingLQRConfig>(
     RacingLQRConfig{
@@ -45,7 +58,9 @@ RacingLQRConfig::SharedPtr load_parameters(rclcpp::Node * node)
           declare_double("racing_lqr.dt"),
           casadi::DM::reshape(casadi::DM(declare_vec("racing_lqr.q")), 6, 6),
           casadi::DM::reshape(casadi::DM(declare_vec("racing_lqr.r")), 3, 3),
-          casadi::DM::reshape(casadi::DM(declare_vec("racing_lqr.qf")), 6, 6)
+          casadi::DM::reshape(casadi::DM(declare_vec("racing_lqr.qf")), 6, 6),
+          step_mode,
+          declare_double("racing_lqr.max_vel_ref_diff")
         }
   );
 }
