@@ -63,8 +63,7 @@ protected:
   RacingTrajectory::SharedPtr track_ {};
   ROSTrajectoryVisualizer::UniquePtr vis_ {};
   BaseVehicleModel::SharedPtr model_ {};
-  RacingLQRConfig::SharedPtr lqr_config {};
-  RacingLQR racing_lqr_ {lqr_config, model_};
+  RacingLQR racing_lqr_;
 //   MultiMPCManager::UniquePtr mpc_manager_ {};
 //   RacingMPC::SharedPtr mpc_full_ {};  // used to compute initial guess
   lmpc::utils::CycleProfiler<double>::UniquePtr profiler_ {};

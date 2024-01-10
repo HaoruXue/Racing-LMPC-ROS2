@@ -58,6 +58,7 @@ RacingLQRNode::RacingLQRNode(const rclcpp::NodeOptions & options)
   model_(vehicle_model::vehicle_model_factory::load_vehicle_model(
       utils::declare_parameter<std::string>(
         this, "racing_lqr_node.vehicle_model_name"), this)),
+  racing_lqr_(config_, model_),
   profiler_(std::make_unique<lmpc::utils::CycleProfiler<double>>(10)),
   profiler_iter_count_(std::make_unique<lmpc::utils::CycleProfiler<double>>(10)),  // not sure this needed
   speed_scale_(utils::declare_parameter<double>(this, "racing_lqr_node.velocity_profile_scale")),
@@ -82,10 +83,6 @@ RacingLQRNode::RacingLQRNode(const rclcpp::NodeOptions & options)
 //     mpc_manager_config->mpcs.push_back(std::make_shared<RacingLQR>(config_, model, false));
 //   }
 //   mpc_manager_ = std::make_unique<MultiMPCManager>(*mpc_manager_config);
-
-  // construct RacingLQR class
-  RacingLQRConfig::SharedPtr lqr_config = std::make_shared<RacingLQRConfig>(*config_);
-  RacingLQR racing_lqr_(lqr_config, model_);
 
   // add visualizations for the trajectory
   vis_->attach_ros_publishers(this, 1.0, true, true);
@@ -761,7 +758,7 @@ void RacingLQRNode::set_speed_scale(const double & speed_scale)
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  rclcpp::executors::MultiThreadedExecutor executor;
+  rclcpp::executors::SingleThreadedExecutor executor;
   rclcpp::NodeOptions options{};
   auto node = std::make_shared<lmpc::mpc::racing_lqr::RacingLQRNode>(options);
   executor.add_node(node);
