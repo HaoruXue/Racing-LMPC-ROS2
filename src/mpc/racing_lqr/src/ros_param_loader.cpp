@@ -57,7 +57,7 @@ RacingLQRConfig::SharedPtr load_parameters(rclcpp::Node * node)
           static_cast<size_t>(declare_int("racing_lqr.n")),
           declare_double("racing_lqr.dt"),
           casadi::DM::reshape(casadi::DM(declare_vec("racing_lqr.q")), 6, 6),
-          casadi::DM::reshape(casadi::DM(declare_vec("racing_lqr.r")), 3, 3),
+          casadi::DM::reshape(casadi::DM(declare_vec("racing_lqr.r")), 2, 2),
           casadi::DM::reshape(casadi::DM(declare_vec("racing_lqr.qf")), 6, 6),
           step_mode,
           declare_double("racing_lqr.max_vel_ref_diff")

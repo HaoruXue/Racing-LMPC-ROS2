@@ -67,9 +67,9 @@ RacingLQRNode::RacingLQRNode(const rclcpp::NodeOptions & options)
 {
   // add a full dynamics MPC solver for the problem initialization
   // auto full_config = std::make_shared<RacingLQRConfig>(*config_);
-//   full_config->max_cpu_time = 10.0;
-//   full_config->max_iter = 1000;
-//   mpc_full_ = std::make_shared<RacingLQR>(full_config, model_, true);  // not sure this needed, or what needs to be configed
+  // full_config->max_cpu_time = 10.0;
+  // full_config->max_iter = 1000;
+  // mpc_full_ = std::make_shared<RacingLQR>(full_config, model_, true);  // not sure this needed, or what needs to be configed
 
   // prepare MPC manager
 //   auto mpc_manager_config = std::make_shared<MultiMPCManagerConfig>();
@@ -148,7 +148,6 @@ RacingLQRNode::RacingLQRNode(const rclcpp::NodeOptions & options)
   }
 }
 
-// not sure this needed, step_mode not in lqr_config. vehicle_state_sub_ depends on this function
 void RacingLQRNode::on_new_state(const mpclab_msgs::msg::VehicleStateMsg::SharedPtr msg)
 {
   vehicle_state_msg_ = msg;
@@ -228,60 +227,56 @@ void RacingLQRNode::on_step_timer()
   // current control input
   sol_in["u_ic"] = u_ic;
 
-//   // if the mpc has never been solved, pass the initial guess
-//   std::unique_lock<std::shared_mutex> last_sol_lock(last_sol_mutex_);
-//   if (!mpc_full_->solved()) {
-//     last_x_ = DM::zeros(model_->nx(), N);
-//     last_u_ = DM::zeros(model_->nu(), N - 1);
-//     last_du_ = DM::zeros(model_->nu(), N - 1);
-//     // not sure this needed, lqr_config does not have these variables
-//     if (config_->learning) {
-//       last_convex_combi_ = DM::zeros(config_->num_ss_pts);
-//     }
-//     last_x_(Slice(), 0) = x_ic;
-//     // forward roll out the initial guess
-//     for (int i = 1; i < N; i++) {
-//       last_x_(Slice(), i) =
-//         discrete_dynamics_(casadi::DMVector{last_x_(Slice(), i - 1), last_u_(Slice(), i - 1)})[0];
-//     }
-//     sol_in["X_optm_ref"] = last_x_;
-//     sol_in["U_optm_ref"] = last_u_;
-//     sol_in["dU_optm_ref"] = last_du_;
-//     // not sure this needed
-//     if (config_->learning) {
-//       sol_in["convex_combi_optm_ref"] = last_convex_combi_;
-//     }
-//     sol_in["X_ref"] = last_x_;
-//     sol_in["U_ref"] = last_u_;
-//     sol_in["x_ic"] = x_ic;
-//   } else {
-//     // prepare the next reference
-//     // not sure this needed, lqr_config does not have step_mode
-//     if (config_->step_mode == RacingLQRStepMode::CONTINUOUS) {
-//       sol_in["x_ic"] = discrete_dynamics_(casadi::DMVector{x_ic, last_u_(Slice(), 0)})[0];
-//     } else if (config_->step_mode == RacingLQRStepMode::STEP) {
-//       sol_in["x_ic"] = x_ic;
-//     } else {
-//       throw std::runtime_error("Unknown RacingLQRStepMode");
-//     }
-//     // shift the previous solution to be the initial guess
-//     last_x_ = DM::horzcat({last_x_(Slice(), Slice(1, N)), DM::zeros(model_->nx(), 1)});
-//     last_u_ = DM::horzcat({last_u_(Slice(), Slice(1, N - 1)), last_u_(Slice(), Slice(N - 2))});
-//     last_du_ = DM::horzcat({last_du_(Slice(), Slice(1, N - 1)), DM::zeros(model_->nu(), 1)});
-//     last_x_(Slice(), -1) =
-//       discrete_dynamics_(casadi::DMVector{last_x_(Slice(), -2), last_u_(Slice(), -1)})[0];
+  // if the mpc has never been solved, pass the initial guess
+  // std::unique_lock<std::shared_mutex> last_sol_lock(last_sol_mutex_);
+  if (!racing_lqr_.get_solved()) {
+    last_x_ = DM::zeros(model_->nx(), N);
+    last_u_ = DM::zeros(model_->nu(), N - 1);
+    last_du_ = DM::zeros(model_->nu(), N - 1);
+    // if (config_->learning) {
+    //   last_convex_combi_ = DM::zeros(config_->num_ss_pts);
+    // }
+    last_x_(Slice(), 0) = x_ic;
+    // forward roll out the initial guess
+    for (int i = 1; i < N; i++) {
+      last_x_(Slice(), i) =
+        discrete_dynamics_(casadi::DMVector{last_x_(Slice(), i - 1), last_u_(Slice(), i - 1)})[0];
+    }
+    sol_in["X_optm_ref"] = last_x_;
+    sol_in["U_optm_ref"] = last_u_;
+    sol_in["dU_optm_ref"] = last_du_;
+    // if (config_->learning) {
+    //   sol_in["convex_combi_optm_ref"] = last_convex_combi_;
+    // }
+    sol_in["X_ref"] = last_x_;
+    sol_in["U_ref"] = last_u_;
+    sol_in["x_ic"] = x_ic;
+  } else {
+    // prepare the next reference
+    if (config_->step_mode == RacingLQRStepMode::CONTINUOUS) {
+      sol_in["x_ic"] = discrete_dynamics_(casadi::DMVector{x_ic, last_u_(Slice(), 0)})[0];
+    } else if (config_->step_mode == RacingLQRStepMode::STEP) {
+      sol_in["x_ic"] = x_ic;
+    } else {
+      throw std::runtime_error("Unknown RacingLQRStepMode");
+    }
+    // shift the previous solution to be the initial guess
+    last_x_ = DM::horzcat({last_x_(Slice(), Slice(1, N)), DM::zeros(model_->nx(), 1)});
+    last_u_ = DM::horzcat({last_u_(Slice(), Slice(1, N - 1)), last_u_(Slice(), Slice(N - 2))});
+    last_du_ = DM::horzcat({last_du_(Slice(), Slice(1, N - 1)), DM::zeros(model_->nu(), 1)});
+    last_x_(Slice(), -1) =
+      discrete_dynamics_(casadi::DMVector{last_x_(Slice(), -2), last_u_(Slice(), -1)})[0];
 
-//     sol_in["X_ref"] = last_x_;
-//     sol_in["U_ref"] = last_u_;
-//     sol_in["X_optm_ref"] = last_x_;
+    sol_in["X_ref"] = last_x_;
+    sol_in["U_ref"] = last_u_;
+    sol_in["X_optm_ref"] = last_x_;
 
-//     sol_in["U_optm_ref"] = last_u_;
-//     sol_in["dU_optm_ref"] = last_du_;
-//     // not sure this needed, lqr_config doesn't have learning
-//     if (config_->learning) {
-//       sol_in["convex_combi_ref"] = last_convex_combi_;
-//     }
-//   }
+    sol_in["U_optm_ref"] = last_u_;
+    sol_in["dU_optm_ref"] = last_du_;
+    // if (config_->learning) {
+    //   sol_in["convex_combi_ref"] = last_convex_combi_;
+    // }
+  }
 
   // prepare the reference trajectory
   const auto abscissa = last_x_(XIndex::PX, Slice());
@@ -344,7 +339,7 @@ void RacingLQRNode::on_step_timer()
   //   return;
   // }
 
-  // [TODO] solve lqr
+  // solve lqr
   // std::cout << "sol_out before solve:\n" << sol_out << std::endl;
   racing_lqr_.solve(sol_in, sol_out);
   // std::cout << "sol_out after solve:\n" << sol_out << std::endl;
@@ -381,7 +376,6 @@ void RacingLQRNode::on_step_timer()
   telemetry_msg.control = u_vec;
 
   // global frame states (used to be last_x_global in racing_mpc)
-  // [TODO]: currently does not have X_optm_ref in sol_in
   auto x_global = solution_x;
   x_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()) =
     f2g_(x_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()))[0];

@@ -55,7 +55,6 @@ void RacingLQR::solve(const casadi::DMDict & in, casadi::DMDict & out)
   const auto & curvatures = in.at("curvatures");
   const auto & bank_angle = in.at("bank_angle");
   //TODO(David): add curavture and bank angle input
-  // currently sol_in has no x_ic, X_ref, and U_ref
 
   auto P = casadi::DMVector(config_->N, config_->Qf);
   auto K = casadi::DMVector(config_->N - 1, DM::zeros(model_->nu(), model_->nx()));
@@ -72,6 +71,14 @@ void RacingLQR::solve(const casadi::DMDict & in, casadi::DMDict & out)
     const auto dyn_d = c2d_(casadi::DMDict{{"Ac", Ac}, {"Bc", Bc}});
     As[k] = dyn_d.at("A");
     Bs[k] = dyn_d.at("B");
+    // std::cout << "R: " << config_->R << std::endl;
+    // std::cout << "P[k+1]: " << P[k+1] << std::endl;
+    // std::cout << "As[k]: " << As[k] << std::endl;
+    // std::cout << "Bs[k]: " << Bs[k] << std::endl;
+    // std::cout << "NOTE: I changed R to a 2x2 matrix from a 3x3 matrix.\n";
+    // std::cout << "NOTE: simplify_lon_control is true in single_track_planar_model and nu is 2.\n";
+    // std::cout << "NOTE: Please remember to change the size of R in ros_param_loader.\n";
+    // std::cout << "k: " << k << std::endl;
 
     // Ricatti
     K[k] =
