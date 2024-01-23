@@ -251,6 +251,9 @@ void RacingLQRNode::on_step_timer()
     sol_in["X_ref"] = last_x_;
     sol_in["U_ref"] = last_u_;
     sol_in["x_ic"] = x_ic;
+
+    std::cout << "U_ref: " << last_u_ << std::endl;
+    std::cout << "X_ref: " << last_x_ << std::endl;
   } else {
     // prepare the next reference
     if (config_->step_mode == RacingLQRStepMode::CONTINUOUS) {
@@ -276,6 +279,8 @@ void RacingLQRNode::on_step_timer()
     // if (config_->learning) {
     //   sol_in["convex_combi_ref"] = last_convex_combi_;
     // }
+    std::cout << "U_ref: " << last_u_ << std::endl;
+    std::cout << "X_ref: " << last_x_ << std::endl;
   }
 
   // prepare the reference trajectory
@@ -347,6 +352,13 @@ void RacingLQRNode::on_step_timer()
   const auto solution_x = sol_out.at("X_optm");
   const auto solution_u = sol_out.at("U_optm");
 
+  // solution_x.to_file("solution_x.txt", "txt");
+  // solution_u.to_file("solution_u.txt", "txt");
+
+  // std::cout << "sol_x shape: " << solution_x.size() << std::endl;
+  // std::cout << "sol_u shape: " << solution_u.size() << std::endl;
+  // std::cout << "vel_ref: " << vel_ref << std::endl;
+
   // get the solution from the buffer
   // not sure this needed
   // const auto solution = mpc_manager_->get_solution(timestamp);
@@ -361,7 +373,8 @@ void RacingLQRNode::on_step_timer()
   const auto now = this->now();
   // publish the actuation message
   const auto u_vec = model_->to_base_control()(
-    casadi::DMDict{{"x", solution_x}, {"u", solution_u}}).at("u_out").get_elements();
+    casadi::DMDict{{"x", solution_x(Slice(), Slice(0, static_cast<casadi_int>(config_->N - 1)))},
+    {"u", solution_u}}).at("u_out").get_elements();
   vehicle_actuation_msg_->header.stamp = now;
   if (abs(u_vec[UIndex::FD]) > abs(u_vec[UIndex::FB])) {
     vehicle_actuation_msg_->u_a = u_vec[UIndex::FD];
@@ -370,6 +383,9 @@ void RacingLQRNode::on_step_timer()
   }
   vehicle_actuation_msg_->u_steer = u_vec[UIndex::STEER];
   vehicle_actuation_pub_->publish(*vehicle_actuation_msg_);
+
+  std::cout << "u_steer: " << u_vec[UIndex::STEER] << std::endl;
+  std::cout << "u_a: " << u_vec[UIndex::FD] << std::endl;
 
   // telemetry msg
   telemetry_msg.state = solution_x.get_elements();
