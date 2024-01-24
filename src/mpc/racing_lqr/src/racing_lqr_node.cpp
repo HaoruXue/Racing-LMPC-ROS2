@@ -254,6 +254,7 @@ void RacingLQRNode::on_step_timer()
 
     std::cout << "U_ref: " << last_u_ << std::endl;
     std::cout << "X_ref: " << last_x_ << std::endl;
+    std::cout << "x_ic: " << x_ic << std::endl;
   } else {
     // prepare the next reference
     if (config_->step_mode == RacingLQRStepMode::CONTINUOUS) {
@@ -281,6 +282,7 @@ void RacingLQRNode::on_step_timer()
     // }
     std::cout << "U_ref: " << last_u_ << std::endl;
     std::cout << "X_ref: " << last_x_ << std::endl;
+    std::cout << "x_ic: " << sol_in["x_ic"] << std::endl;
   }
 
   // prepare the reference trajectory
@@ -295,24 +297,26 @@ void RacingLQRNode::on_step_timer()
 
   // cap the velocity by the speed limit
   // not sure this needed, lqr_config doesn't have max_vel_ref_diff
-  // for (casadi_int i = 0; i < static_cast<casadi_int>(config_->N); i++) {
-  //   // clip the velocity reference within +- max_vel_ref_diff m/s of current speed
-  //   const auto current_speed = static_cast<double>(last_x_(XIndex::VX, i));
-  //   const auto ref_speed = static_cast<double>(vel_ref(i)) * speed_scale_;
-  //   const auto speed_limit_clipped = std::clamp(
-  //     this->speed_limit_, current_speed - config_->max_vel_ref_diff,
-  //     current_speed + config_->max_vel_ref_diff);
-  //   // valid TTL has positive velocity profile.
-  //   // if the velocity profile is negative, set it to the speed limit
-  //   if (ref_speed > 0.0) {
-  //     const auto ref_speed_clipped = std::clamp(
-  //       ref_speed, current_speed - config_->max_vel_ref_diff,
-  //       current_speed + config_->max_vel_ref_diff);
-  //     vel_ref(i) = std::min(ref_speed_clipped, speed_limit_clipped);
-  //   } else {
-  //     vel_ref(i) = speed_limit_clipped;
-  //   }
-  // }
+  for (casadi_int i = 0; i < static_cast<casadi_int>(config_->N); i++) {
+    // clip the velocity reference within +- max_vel_ref_diff m/s of current speed
+    const auto current_speed = static_cast<double>(last_x_(XIndex::VX, i));
+    const auto ref_speed = static_cast<double>(vel_ref(i)) * speed_scale_;
+    // const auto speed_limit_clipped = std::clamp(
+    //   this->speed_limit_, current_speed - config_->max_vel_ref_diff,
+    //   current_speed + config_->max_vel_ref_diff);
+    // valid TTL has positive velocity profile.
+    // if the velocity profile is negative, set it to the speed limit
+    if (ref_speed > 0.0) {
+      const auto ref_speed_clipped = std::clamp(
+        ref_speed, current_speed - config_->max_vel_ref_diff,
+        current_speed + config_->max_vel_ref_diff);
+      // vel_ref(i) = std::min(ref_speed_clipped, speed_limit_clipped);
+      vel_ref(i) = ref_speed_clipped;
+    }
+    // else {
+    //   vel_ref(i) = speed_limit_clipped;
+    // }
+  }
   sol_in["bound_left"] = left_ref;
   sol_in["bound_right"] = right_ref;
   sol_in["curvatures"] = curvature_ref;

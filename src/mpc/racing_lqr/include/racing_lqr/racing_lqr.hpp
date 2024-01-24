@@ -61,6 +61,7 @@ protected:
   BaseVehicleModel::SharedPtr model_ {};
   casadi::Function c2d_;
   casadi::Function rk4_;
+  casadi::Function align_abscissa_;
   bool lqr_solved_;
 };
 }  // namespace racing_lqr

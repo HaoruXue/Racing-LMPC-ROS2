@@ -34,6 +34,7 @@ RacingLQR::RacingLQR(
 : config_(mpc_config), model_(model),
   c2d_(utils::c2d_function(model_->nx(), model_->nu(), config_->dt)),
   rk4_(utils::rk4_function(model_->nx(), model_->nu(), model_->dynamics())),
+  align_abscissa_(utils::align_abscissa_function(config_->N)),
   lqr_solved_(false)
 {
 }
@@ -49,8 +50,13 @@ void RacingLQR::solve(const casadi::DMDict & in, casadi::DMDict & out)
   using casadi::MX;
   using casadi::Slice;
 
+  const auto & total_length = in.at("total_length");
   const auto & x_ic = in.at("x_ic");
-  const auto & X_ref = in.at("X_ref");
+  auto X_ref = in.at("X_ref");
+  X_ref(XIndex::PX, Slice()) = align_abscissa_(
+    casadi::DMDict{{"abscissa_1", X_ref(XIndex::PX, Slice())},
+      {"abscissa_2", DM::ones(1, config_->N) * x_ic(XIndex::PX)},
+      {"total_distance", DM::ones(1, config_->N) * total_length}}).at("abscissa_1_aligned");
   const auto & U_ref = in.at("U_ref");
   const auto & curvatures = in.at("curvatures");
   const auto & bank_angle = in.at("bank_angle");
