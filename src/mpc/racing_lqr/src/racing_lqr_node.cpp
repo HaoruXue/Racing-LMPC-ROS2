@@ -252,9 +252,9 @@ void RacingLQRNode::on_step_timer()
     sol_in["U_ref"] = last_u_;
     sol_in["x_ic"] = x_ic;
 
-    std::cout << "U_ref: " << last_u_ << std::endl;
-    std::cout << "X_ref: " << last_x_ << std::endl;
-    std::cout << "x_ic: " << x_ic << std::endl;
+    // std::cout << "U_ref: " << last_u_ << std::endl;
+    // std::cout << "X_ref: " << last_x_ << std::endl;
+    // std::cout << "x_ic: " << x_ic << std::endl;
   } else {
     // prepare the next reference
     if (config_->step_mode == RacingLQRStepMode::CONTINUOUS) {
@@ -280,9 +280,9 @@ void RacingLQRNode::on_step_timer()
     // if (config_->learning) {
     //   sol_in["convex_combi_ref"] = last_convex_combi_;
     // }
-    std::cout << "U_ref: " << last_u_ << std::endl;
-    std::cout << "X_ref: " << last_x_ << std::endl;
-    std::cout << "x_ic: " << sol_in["x_ic"] << std::endl;
+    // std::cout << "U_ref: " << last_u_ << std::endl;
+    // std::cout << "X_ref: " << last_x_ << std::endl;
+    // std::cout << "x_ic: " << sol_in["x_ic"] << std::endl;
   }
 
   // prepare the reference trajectory
@@ -388,8 +388,8 @@ void RacingLQRNode::on_step_timer()
   vehicle_actuation_msg_->u_steer = u_vec[UIndex::STEER];
   vehicle_actuation_pub_->publish(*vehicle_actuation_msg_);
 
-  std::cout << "u_steer: " << u_vec[UIndex::STEER] << std::endl;
-  std::cout << "u_a: " << u_vec[UIndex::FD] << std::endl;
+  // std::cout << "u_steer: " << u_vec[UIndex::STEER] << std::endl;
+  // std::cout << "u_a: " << u_vec[UIndex::FD] << std::endl;
 
   // telemetry msg
   telemetry_msg.state = solution_x.get_elements();
