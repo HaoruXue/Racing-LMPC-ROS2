@@ -18,8 +18,8 @@
       #   0.0, 0.0, 0.01
       # ]
       r: [
-        0.1, 0.0,
-        0.0, 0.1,
+        0.01, 0.0,
+        0.0, 0.01,
       ]
       qf: [
         1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -31,7 +31,7 @@
       ]
 
       step_mode: "continuous"
-      max_vel_ref_diff: 1.0 # max difference between reference velocity and actual velocity
+      max_vel_ref_diff: 3.0 # max difference between reference velocity and actual velocity
 
       # x_max: [.inf, .inf, .inf, 100.0, 15.0, 2.0]
       # x_min: [-.inf, -.inf, -.inf, 3.0, -15.0, -2.0]

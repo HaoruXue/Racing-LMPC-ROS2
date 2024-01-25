@@ -248,7 +248,7 @@ void RacingLQRNode::on_step_timer()
     // if (config_->learning) {
     //   sol_in["convex_combi_optm_ref"] = last_convex_combi_;
     // }
-    sol_in["X_ref"] = last_x_;
+    // sol_in["X_ref"] = last_x_;
     sol_in["U_ref"] = last_u_;
     sol_in["x_ic"] = x_ic;
 
@@ -271,7 +271,7 @@ void RacingLQRNode::on_step_timer()
     last_x_(Slice(), -1) =
       discrete_dynamics_(casadi::DMVector{last_x_(Slice(), -2), last_u_(Slice(), -1)})[0];
 
-    sol_in["X_ref"] = last_x_;
+    // sol_in["X_ref"] = last_x_;
     sol_in["U_ref"] = last_u_;
     sol_in["X_optm_ref"] = last_x_;
 
@@ -282,7 +282,7 @@ void RacingLQRNode::on_step_timer()
     // }
     // std::cout << "U_ref: " << last_u_ << std::endl;
     // std::cout << "X_ref: " << last_x_ << std::endl;
-    // std::cout << "x_ic: " << sol_in["x_ic"] << std::endl;
+    // std::cout << "x_ic: " << sol_in["x_ic"] << std::endl;PX
   }
 
   // prepare the reference trajectory
@@ -317,6 +317,11 @@ void RacingLQRNode::on_step_timer()
     //   vel_ref(i) = speed_limit_clipped;
     // }
   }
+  casadi::DM x_ref = casadi::DM::zeros(model_->nx(), N);
+  x_ref(XIndex::PX, Slice()) = abscissa;
+  x_ref(XIndex::VX, Slice()) = vel_ref;
+
+  sol_in["X_ref"] = x_ref;
   sol_in["bound_left"] = left_ref;
   sol_in["bound_right"] = right_ref;
   sol_in["curvatures"] = curvature_ref;
@@ -400,9 +405,9 @@ void RacingLQRNode::on_step_timer()
   x_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()) =
     f2g_(x_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()))[0];
 
-  auto x_ref_global = sol_in.at("X_optm_ref");
+  auto x_ref_global = sol_in.at("X_ref");
   x_ref_global(Slice(XIndex::PX, XIndex::YAW + 1), Slice()) =
-    f2g_(sol_in.at("X_optm_ref")(Slice(XIndex::PX, XIndex::YAW + 1), Slice()))[0];
+    f2g_(sol_in.at("X_ref")(Slice(XIndex::PX, XIndex::YAW + 1), Slice()))[0];
   // traj_lock.unlock();
 
   // const auto mpc_solve_duration_ms = solution.solve_time_nanosec / 1e6;
@@ -435,12 +440,12 @@ void RacingLQRNode::on_step_timer()
     auto & pose = mpc_vis_msg.poses.emplace_back();
     pose.header.stamp = now;
     pose.header.frame_id = "map";
-    pose.pose.position.x = x_ref_global(XIndex::PX, i).get_elements()[0];
-    pose.pose.position.y = x_ref_global(XIndex::PY, i).get_elements()[0];
+    pose.pose.position.x = x_global(XIndex::PX, i).get_elements()[0];
+    pose.pose.position.y = x_global(XIndex::PY, i).get_elements()[0];
     pose.pose.position.z = 0.0;
     pose.pose.orientation = tf2::toMsg(
       utils::TransformHelper::quaternion_from_heading(
-        x_ref_global(XIndex::YAW, i).get_elements()[0]));
+        x_global(XIndex::YAW, i).get_elements()[0]));
   }
   mpc_vis_pub_->publish(mpc_vis_msg);
 
@@ -453,12 +458,12 @@ void RacingLQRNode::on_step_timer()
     auto & pose = ref_vis_msg.poses.emplace_back();
     pose.header.stamp = now;
     pose.header.frame_id = "map";
-    pose.pose.position.x = x_global(XIndex::PX, i).get_elements()[0];
-    pose.pose.position.y = x_global(XIndex::PY, i).get_elements()[0];
+    pose.pose.position.x = x_ref_global(XIndex::PX, i).get_elements()[0];
+    pose.pose.position.y = x_ref_global(XIndex::PY, i).get_elements()[0];
     pose.pose.position.z = 0.0;
     pose.pose.orientation = tf2::toMsg(
       utils::TransformHelper::quaternion_from_heading(
-        x_global(XIndex::YAW, i).get_elements()[0]));
+        x_ref_global(XIndex::YAW, i).get_elements()[0]));
   }
   ref_vis_pub_->publish(ref_vis_msg);
 
