@@ -251,10 +251,6 @@ void RacingLQRNode::on_step_timer()
     // sol_in["X_ref"] = last_x_;
     sol_in["U_ref"] = last_u_;
     sol_in["x_ic"] = x_ic;
-
-    // std::cout << "U_ref: " << last_u_ << std::endl;
-    // std::cout << "X_ref: " << last_x_ << std::endl;
-    // std::cout << "x_ic: " << x_ic << std::endl;
   } else {
     // prepare the next reference
     if (config_->step_mode == RacingLQRStepMode::CONTINUOUS) {
@@ -280,9 +276,6 @@ void RacingLQRNode::on_step_timer()
     // if (config_->learning) {
     //   sol_in["convex_combi_ref"] = last_convex_combi_;
     // }
-    // std::cout << "U_ref: " << last_u_ << std::endl;
-    // std::cout << "X_ref: " << last_x_ << std::endl;
-    // std::cout << "x_ic: " << sol_in["x_ic"] << std::endl;PX
   }
 
   // prepare the reference trajectory
@@ -317,6 +310,8 @@ void RacingLQRNode::on_step_timer()
     //   vel_ref(i) = speed_limit_clipped;
     // }
   }
+
+  // prepare state reference
   casadi::DM x_ref = casadi::DM::zeros(model_->nx(), N);
   x_ref(XIndex::PX, Slice()) = abscissa;
   x_ref(XIndex::VX, Slice()) = vel_ref;
@@ -367,6 +362,9 @@ void RacingLQRNode::on_step_timer()
   // std::cout << "sol_x shape: " << solution_x.size() << std::endl;
   // std::cout << "sol_u shape: " << solution_u.size() << std::endl;
   // std::cout << "vel_ref: " << vel_ref << std::endl;
+  // std::cout << "U_ref: " << sol_in["U_ref"] << std::endl;
+  // std::cout << "X_ref in node: " << sol_in["X_ref"] << std::endl;
+  // std::cout << "x_ic: " << sol_in["x_ic"] << std::endl;
 
   // get the solution from the buffer
   // not sure this needed
