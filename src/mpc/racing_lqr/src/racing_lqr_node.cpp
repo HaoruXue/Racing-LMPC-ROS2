@@ -261,8 +261,12 @@ void RacingLQRNode::on_step_timer()
       throw std::runtime_error("Unknown RacingLQRStepMode");
     }
     // shift the previous solution to be the initial guess
+    // edited to be closed loop x and u reference
     last_x_ = DM::horzcat({last_x_(Slice(), Slice(1, N)), DM::zeros(model_->nx(), 1)});
     last_u_ = DM::horzcat({last_u_(Slice(), Slice(1, N - 1)), last_u_(Slice(), Slice(N - 2))});
+    // last_x_ = DM::horzcat({(sol_out.at("X_optm"))(Slice(), Slice(1, N)), DM::zeros(model_->nx(), 1)});
+    // last_u_ = DM::horzcat({(sol_out.at("U_optm"))(Slice(), Slice(1, N - 1)), last_u_(Slice(), Slice(N - 2))});
+
     last_du_ = DM::horzcat({last_du_(Slice(), Slice(1, N - 1)), DM::zeros(model_->nu(), 1)});
     last_x_(Slice(), -1) =
       discrete_dynamics_(casadi::DMVector{last_x_(Slice(), -2), last_u_(Slice(), -1)})[0];
@@ -353,6 +357,8 @@ void RacingLQRNode::on_step_timer()
   racing_lqr_.solve(sol_in, sol_out);
   // std::cout << "sol_out after solve:\n" << sol_out << std::endl;
 
+  last_x_ = sol_out.at("X_optm");
+  last_u_ = sol_out.at("U_optm");
   const auto solution_x = sol_out.at("X_optm");
   const auto solution_u = sol_out.at("U_optm");
 
@@ -361,6 +367,8 @@ void RacingLQRNode::on_step_timer()
 
   // std::cout << "sol_x shape: " << solution_x.size() << std::endl;
   // std::cout << "sol_u shape: " << solution_u.size() << std::endl;
+  // std::cout << "last_x_ shape: " << last_x_.size() << std::endl;
+  // std::cout << "last_u_ shape: " << last_u_.size() << std::endl;
   // std::cout << "vel_ref: " << vel_ref << std::endl;
   // std::cout << "U_ref: " << sol_in["U_ref"] << std::endl;
   // std::cout << "X_ref in node: " << sol_in["X_ref"] << std::endl;

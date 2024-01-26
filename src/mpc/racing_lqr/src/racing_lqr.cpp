@@ -77,8 +77,8 @@ void RacingLQR::solve(const casadi::DMDict & in, casadi::DMDict & out)
     const auto dyn_d = c2d_(casadi::DMDict{{"Ac", Ac}, {"Bc", Bc}});
     As[k] = dyn_d.at("A");
     Bs[k] = dyn_d.at("B");
-    std::cout << "x_ic in lqr: " << x_ic << std::endl;
-    std::cout << "X_ref: " << X_ref << std::endl;
+    // std::cout << "x_ic in lqr: " << x_ic << std::endl;
+    // std::cout << "X_ref: " << X_ref << std::endl;
     // std::cout << "R: " << config_->R << std::endl;
     // std::cout << "P[k+1]: " << P[k+1] << std::endl;
     // std::cout << "As[k]: " << As[k] << std::endl;
