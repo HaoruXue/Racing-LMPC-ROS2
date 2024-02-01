@@ -46,6 +46,10 @@ struct RacingLQRConfig
 
   RacingLQRStepMode step_mode = RacingLQRStepMode::STEP;
 
+  casadi::DM x_max;  // primal upper bound
+  casadi::DM x_min;  // primal lower bound
+  casadi::DM u_max;  // primal upper bound
+  casadi::DM u_min;  // primal lower bound
   double max_vel_ref_diff;  // max velocity reference difference
 
 };

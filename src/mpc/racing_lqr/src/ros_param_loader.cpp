@@ -60,6 +60,10 @@ RacingLQRConfig::SharedPtr load_parameters(rclcpp::Node * node)
           casadi::DM::reshape(casadi::DM(declare_vec("racing_lqr.r")), 2, 2),
           casadi::DM::reshape(casadi::DM(declare_vec("racing_lqr.qf")), 6, 6),
           step_mode,
+          casadi::DM(declare_vec("racing_lqr.x_max")),
+          casadi::DM(declare_vec("racing_lqr.x_min")),
+          casadi::DM(declare_vec("racing_lqr.u_max")),
+          casadi::DM(declare_vec("racing_lqr.u_min")),
           declare_double("racing_lqr.max_vel_ref_diff")
         }
   );

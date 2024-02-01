@@ -261,11 +261,8 @@ void RacingLQRNode::on_step_timer()
       throw std::runtime_error("Unknown RacingLQRStepMode");
     }
     // shift the previous solution to be the initial guess
-    // edited to be closed loop x and u reference
     last_x_ = DM::horzcat({last_x_(Slice(), Slice(1, N)), DM::zeros(model_->nx(), 1)});
     last_u_ = DM::horzcat({last_u_(Slice(), Slice(1, N - 1)), last_u_(Slice(), Slice(N - 2))});
-    // last_x_ = DM::horzcat({(sol_out.at("X_optm"))(Slice(), Slice(1, N)), DM::zeros(model_->nx(), 1)});
-    // last_u_ = DM::horzcat({(sol_out.at("U_optm"))(Slice(), Slice(1, N - 1)), last_u_(Slice(), Slice(N - 2))});
 
     last_du_ = DM::horzcat({last_du_(Slice(), Slice(1, N - 1)), DM::zeros(model_->nu(), 1)});
     last_x_(Slice(), -1) =
@@ -319,6 +316,13 @@ void RacingLQRNode::on_step_timer()
   casadi::DM x_ref = casadi::DM::zeros(model_->nx(), N);
   x_ref(XIndex::PX, Slice()) = abscissa;
   x_ref(XIndex::VX, Slice()) = vel_ref;
+  // casadi::DM beta_ss = curvature_ref * (l_r - (l_f * m * vel_ref * vel_ref) / (2 * C_rear * (l_f + l_r)));
+  // // small angle approximation that tan(beta_ss) ~ beta_ss
+  // x_ref(XIndex::VY, Slice()) = -1 * vel_ref * beta_ss;
+
+  // std::cout << "vel_ref: " << vel_ref(0) << std::endl;
+  // std::cout << "e_yaw_list: " << last_x_(XIndex::YAW, Slice()) << std::endl;
+  // std::cout << "v_lat_ref: " << x_ref(XIndex::VY, Slice()) << std::endl;
 
   sol_in["X_ref"] = x_ref;
   sol_in["bound_left"] = left_ref;
@@ -373,6 +377,8 @@ void RacingLQRNode::on_step_timer()
   // std::cout << "U_ref: " << sol_in["U_ref"] << std::endl;
   // std::cout << "X_ref in node: " << sol_in["X_ref"] << std::endl;
   // std::cout << "x_ic: " << sol_in["x_ic"] << std::endl;
+  // std::cout << "e_yaw: " << sol_in["x_ic"](XIndex::YAW) << std::endl;
+  // std::cout << "v_lat: " << sol_in["x_ic"](XIndex::VY) << std::endl;
 
   // get the solution from the buffer
   // not sure this needed
@@ -387,6 +393,8 @@ void RacingLQRNode::on_step_timer()
 
   const auto now = this->now();
   // publish the actuation message
+  // TODO: implement control constraint
+  // TODO: implement UIndexSimple::STEER_SIMPLE
   const auto u_vec = model_->to_base_control()(
     casadi::DMDict{{"x", solution_x(Slice(), Slice(0, static_cast<casadi_int>(config_->N - 1)))},
     {"u", solution_u}}).at("u_out").get_elements();
@@ -401,6 +409,7 @@ void RacingLQRNode::on_step_timer()
 
   // std::cout << "u_steer: " << u_vec[UIndex::STEER] << std::endl;
   // std::cout << "u_a: " << u_vec[UIndex::FD] << std::endl;
+  // std::cout << "u_vec size: " << u_vec.size() << std::endl;
 
   // telemetry msg
   telemetry_msg.state = solution_x.get_elements();
