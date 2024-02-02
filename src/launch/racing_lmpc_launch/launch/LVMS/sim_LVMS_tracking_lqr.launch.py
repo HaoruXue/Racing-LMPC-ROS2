@@ -72,10 +72,10 @@ def generate_launch_description():
             ),
             Node(
                 package="racing_lqr",
-                executable="racing_lqr_node_exe",  # TODO: find out what is this
+                executable="racing_lqr_node_exe",
                 name="racing_lqr_node",
                 output="screen",
-                parameters=[  # TODO: find out how to change this
+                parameters=[
                     lqr_config,
                     dt_model_config,
                     base_model_config,
@@ -84,7 +84,7 @@ def generate_launch_description():
                         "racing_lqr_node.vehicle_model_name": "single_track_planar_model",
                         "racing_lqr_node.default_traj_idx": 20,
                         "racing_lqr_node.traj_folder": track_file_folder,
-                        "racing_lqr_node.velocity_profile_scale": 0.4,
+                        "racing_lqr_node.velocity_profile_scale": 0.7,
                         "racing_lqr_node.delay_step": 0,
                     },
                 ],
