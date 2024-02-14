@@ -1,0 +1,68 @@
+/**:
+  ros__parameters:
+    racing_lqr:
+      n: 51
+      dt: 0.02
+
+      # q: [
+      #   0.5, 0.0, 0.0, 0.0, 0.0, 0.0,
+      #   0.0, 6.0, 0.0, 0.0, 0.0, 0.0,
+      #   0.0, 0.0, 2.0, 0.0, 0.0, 0.0,
+      #   0.0, 0.0, 0.0, 0.3, 0.0, 0.0,
+      #   0.0, 0.0, 0.0, 0.0, 0.5, 0.0,
+      #   0.0, 0.0, 0.0, 0.0, 0.0, 0.5
+      # ]
+      q: [
+        0.5, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 14.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 2.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.8, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.2, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 18.0
+      ]
+
+      # r: [
+      #   30.0, 0.0,
+      #   0.0, 300.0,
+      # ]
+      r: [
+        20.0, 0.0,
+        0.0, 1000.0,
+      ]
+      qf: [
+        0.5, 0.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 3.0, 0.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 3.0, 0.0, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.3, 0.0, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.3, 0.0,
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.3
+      ]
+
+      step_mode: "continuous"
+      x_max: [.inf, .inf, .inf, 100.0, 15.0, 2.0]
+      x_min: [-.inf, -.inf, -.inf, 3.0, -15.0, -2.0]
+      u_max: [5.0, 0.314159]
+      u_min: [-10.0, -0.314159]
+      max_vel_ref_diff: 3.0 # max difference between reference velocity and actual velocity
+
+      # x_max: [.inf, .inf, .inf, 100.0, 15.0, 2.0]
+      # x_min: [-.inf, -.inf, -.inf, 3.0, -15.0, -2.0]
+      # u_max: [5.0, 0.314159]
+      # u_min: [-10.0, -0.314159]
+
+      # # LMPC
+      # learning: false
+      # convex_hull_slack: [20.0, 20.0, 2.0, 20.0, 20.0, 2.0]
+      # num_ss_pts: 96
+      # num_ss_pts_per_lap: 32
+      # max_lap_stored: 3
+
+      # # recording
+      # record: false
+      # path_prefix: "/home/haoru/berkeley/Racing-LMPC-ROS2/src/mpc/racing_mpc/test_data/putnam_short_ss/ss_"
+
+      # load: false
+      # load_path:
+      #   - /home/haoru/berkeley/Racing-LMPC-ROS2/src/mpc/racing_mpc/test_data/putnam_short_ss/ss_lap_1
+      #   - /home/haoru/berkeley/Racing-LMPC-ROS2/src/mpc/racing_mpc/test_data/putnam_short_ss/ss_lap_2
+      #   - /home/haoru/berkeley/Racing-LMPC-ROS2/src/mpc/racing_mpc/test_data/putnam_short_ss/ss_lap_3
