@@ -23,6 +23,7 @@
 // commented out mpc_vis, ref_vis, ss_vis, ego_vis
 
 #include <sstream>
+#include <algorithm>
 
 #include <lmpc_utils/ros_param_helper.hpp>
 #include <lmpc_utils/utils.hpp>
@@ -392,6 +393,7 @@ void RacingLQRNode::on_step_timer()
   // }
 
   const auto now = this->now();
+  // auto a = config_->u_max(0).scalar();
   // publish the actuation message
   // TODO: implement control constraint
   // TODO: implement UIndexSimple::STEER_SIMPLE
@@ -400,11 +402,11 @@ void RacingLQRNode::on_step_timer()
     {"u", solution_u}}).at("u_out").get_elements();
   vehicle_actuation_msg_->header.stamp = now;
   if (abs(u_vec[UIndex::FD]) > abs(u_vec[UIndex::FB])) {
-    vehicle_actuation_msg_->u_a = u_vec[UIndex::FD];
+    vehicle_actuation_msg_->u_a = std::min(u_vec[UIndex::FD], config_->u_max(0).scalar());
   } else {
-    vehicle_actuation_msg_->u_a = u_vec[UIndex::FB];
+    vehicle_actuation_msg_->u_a = std::min(u_vec[UIndex::FB], -1 * config_->u_min(0).scalar());
   }
-  vehicle_actuation_msg_->u_steer = u_vec[UIndex::STEER];
+  vehicle_actuation_msg_->u_steer = std::clamp(u_vec[UIndex::STEER], config_->u_min(1).scalar(), config_->u_max(1).scalar());
   vehicle_actuation_pub_->publish(*vehicle_actuation_msg_);
 
   // std::cout << "u_steer: " << u_vec[UIndex::STEER] << std::endl;
