@@ -27,7 +27,7 @@
       # ]
       r: [
         20.0, 0.0,
-        0.0, 2500.0,
+        0.0, 3500.0,
       ]
       qf: [
         0.5, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -43,7 +43,7 @@
       x_min: [-.inf, -.inf, -.inf, 3.0, -15.0, -2.0]
       u_max: [5.0, 0.314159]
       u_min: [-10.0, -0.314159]
-      max_vel_ref_diff: 2.5 # max difference between reference velocity and actual velocity
+      max_vel_ref_diff: 3.0 # max difference between reference velocity and actual velocity
 
       # x_max: [.inf, .inf, .inf, 100.0, 15.0, 2.0]
       # x_min: [-.inf, -.inf, -.inf, 3.0, -15.0, -2.0]
