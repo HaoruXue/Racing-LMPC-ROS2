@@ -31,9 +31,10 @@ namespace racing_lqr
 {
 using lmpc::vehicle_model::base_vehicle_model::BaseVehicleModelConfig;
 using lmpc::vehicle_model::single_track_planar_model::SingleTrackPlanarModel;
-using lmpc::vehicle_model::single_track_planar_model::SingleTrackPlanarModelConfig; \
-  using lmpc::vehicle_model::single_track_planar_model::XIndex;
+using lmpc::vehicle_model::single_track_planar_model::SingleTrackPlanarModelConfig;
+using lmpc::vehicle_model::single_track_planar_model::XIndex;
 using lmpc::vehicle_model::single_track_planar_model::UIndex;
+using lmpc::vehicle_model::single_track_planar_model::UIndexSimple;
 
 using lmpc::vehicle_model::base_vehicle_model::BaseVehicleModelConfig;
 using lmpc::vehicle_model::base_vehicle_model::BaseVehicleModel;

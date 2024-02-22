@@ -402,15 +402,17 @@ void RacingLQRNode::on_step_timer()
     {"u", solution_u}}).at("u_out").get_elements();
   vehicle_actuation_msg_->header.stamp = now;
   if (abs(u_vec[UIndex::FD]) > abs(u_vec[UIndex::FB])) {
-    vehicle_actuation_msg_->u_a = std::min(u_vec[UIndex::FD], config_->u_max(0).scalar());
+    vehicle_actuation_msg_->u_a = std::min(u_vec[UIndex::FD], config_->u_max(UIndexSimple::LON).scalar());
   } else {
-    vehicle_actuation_msg_->u_a = std::min(u_vec[UIndex::FB], -1 * config_->u_min(0).scalar());
+    vehicle_actuation_msg_->u_a = std::max(u_vec[UIndex::FB], config_->u_min(UIndexSimple::LON).scalar());
   }
-  vehicle_actuation_msg_->u_steer = std::clamp(u_vec[UIndex::STEER], config_->u_min(1).scalar(), config_->u_max(1).scalar());
+  vehicle_actuation_msg_->u_steer = std::clamp(u_vec[UIndex::STEER],
+    config_->u_min(UIndexSimple::STEER_SIMPLE).scalar(), config_->u_max(UIndexSimple::STEER_SIMPLE).scalar());
   vehicle_actuation_pub_->publish(*vehicle_actuation_msg_);
 
   // std::cout << "u_steer: " << u_vec[UIndex::STEER] << std::endl;
-  // std::cout << "u_a: " << u_vec[UIndex::FD] << std::endl;
+  // std::cout << "u_acc: " << u_vec[UIndex::FD] << std::endl;
+  // std::cout << "u_brake: " << u_vec[UIndex::FB] << std::endl;
   // std::cout << "u_vec size: " << u_vec.size() << std::endl;
 
   // telemetry msg
