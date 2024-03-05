@@ -317,13 +317,41 @@ void RacingLQRNode::on_step_timer()
   casadi::DM x_ref = casadi::DM::zeros(model_->nx(), N);
   x_ref(XIndex::PX, Slice()) = abscissa;
   x_ref(XIndex::VX, Slice()) = vel_ref;
-  // casadi::DM beta_ss = curvature_ref * (l_r - (l_f * m * vel_ref * vel_ref) / (2 * C_rear * (l_f + l_r)));
-  // // small angle approximation that tan(beta_ss) ~ beta_ss
-  // x_ref(XIndex::VY, Slice()) = -1 * vel_ref * beta_ss;
+
+  // const auto C_r = model_->get_base_config().rear_tyre_config->pacejka_c;
+  // const auto cg_ratio = model_->get_base_config().chassis_config->cg_ratio;
+  // const auto L = model_->get_base_config().chassis_config->wheel_base;
+  // const auto l_f = L * cg_ratio;
+  // const auto l_r = L - l_f;
+  // const auto m = model_->get_base_config().chassis_config->total_mass;
+  // DM beta_ss = (l_r - (l_f*m*vel_ref*vel_ref)/(2*C_r*L)) * curvature_ref;
+
+  // casadi::DM beta_ss = -1 * last_x_(XIndex::YAW, Slice());  // reference vehicle slip angle
+  // // Scale down the slip angle when velocity is high, so that the vehicle don't become unstable
+  // // at fast speed with some yaw error
+  // constexpr double scale_down_thresh_vel = 25.;
+  // const auto scale_down_factor = std::min(1., std::exp(-0.4 * (static_cast<double>(vel_ref(0)) - scale_down_thresh_vel)));
+  // beta_ss = beta_ss * scale_down_factor;
+
+  // TODO: clamp the beta_ss
+  // double beta_lb = -0.17453;
+  // double beta_ub = 0.17453;
+  // beta_ss = casadi::fmax(casadi::DM(beta_lb), beta_ss);
+  // small angle approximation that tan(beta_ss) ~ beta_ss
+  // x_ref(XIndex::VY, Slice()) = vel_ref * beta_ss;
+  DM yaw_rate_ref = vel_ref * curvature_ref;
+  for (casadi_int i = 0; i < static_cast<casadi_int>(config_->N); i++) {
+    const auto ref = static_cast<double>(yaw_rate_ref(i));
+    // yaw_rate_ref(i) = std::clamp(ref, config_->x_min(XIndex::VYAW).scalar(),
+    //   config_->x_max(XIndex::VYAW).scalar());
+    yaw_rate_ref(i) = std::clamp(ref, -0.6, 0.6);
+  }
+  x_ref(XIndex::VYAW, Slice()) = vel_ref * curvature_ref;
 
   // std::cout << "vel_ref: " << vel_ref(0) << std::endl;
   // std::cout << "e_yaw_list: " << last_x_(XIndex::YAW, Slice()) << std::endl;
   // std::cout << "v_lat_ref: " << x_ref(XIndex::VY, Slice()) << std::endl;
+  // std::cout << "beta ref: " << beta_ss(0) << std::endl;
 
   sol_in["X_ref"] = x_ref;
   sol_in["bound_left"] = left_ref;

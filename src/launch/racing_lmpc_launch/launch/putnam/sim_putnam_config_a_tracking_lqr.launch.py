@@ -85,7 +85,7 @@ def generate_launch_description():
                         "racing_lqr_node.vehicle_model_name": "single_track_planar_model",
                         "racing_lqr_node.default_traj_idx": 10,
                         "racing_lqr_node.traj_folder": track_file_folder,
-                        "racing_lqr_node.velocity_profile_scale": 0.7,
+                        "racing_lqr_node.velocity_profile_scale": 0.8,
                         "racing_lqr_node.delay_step": 0,
                     },
                 ],
