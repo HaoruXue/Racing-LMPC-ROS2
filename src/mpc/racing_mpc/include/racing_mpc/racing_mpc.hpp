@@ -48,9 +48,10 @@ public:
     const bool & full_dynamics = false);
   const RacingMPCConfig & get_config() const;
 
-  bool init() override;
-  void solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::Dict & stats) override;
+  virtual bool init() override;
+  virtual void solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::Dict & stats) override;
   void create_warm_start(const casadi::DMDict & in, casadi::DMDict & out);
+  casadi::Function to_function();
 
   BaseVehicleModel & get_model();
 
@@ -75,6 +76,8 @@ protected:
   casadi::MX convex_combi_;
 
   // optimization parameters
+  casadi::MX scale_x_param_;
+  casadi::MX scale_u_param_;
   casadi::MX X_ref_;  // reference states, unscaled
   casadi::MX U_ref_;  // reference inputs, unscaled
   casadi::MX T_ref_;  // reference time, unscaled

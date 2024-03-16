@@ -22,6 +22,7 @@
 #include "racing_mpc/racing_mpc.hpp"
 #include "racing_mpc/racing_convex_mpc.hpp"
 #include "racing_mpc/racing_follow_mpc.hpp"
+#include "racing_mpc/racing_mpc_function.hpp"
 
 namespace lmpc
 {
@@ -53,6 +54,8 @@ RacingMPCSolverNode::RacingMPCSolverNode(const rclcpp::NodeOptions & options)
   } else if (config->interface == "opti_follow") {
     mpc_ = std::make_unique<RacingFollowMPC>(config, model, full_dynamics);
     RCLCPP_INFO(this->get_logger(), "Using Racing Follow MPC (opti).");
+  } else if (config->interface == "function") {
+    mpc_ = std::make_unique<RacingMPCFunction>(config, model, full_dynamics);
   } else {
     throw std::invalid_argument("Invalid interface: " + config->interface);
   }
@@ -63,6 +66,11 @@ RacingMPCSolverNode::RacingMPCSolverNode(const rclcpp::NodeOptions & options)
     "solve_mpc", std::bind(
       &RacingMPCSolverNode::solve_mpc_callback, this,
       std::placeholders::_1, std::placeholders::_2));
+}
+
+BaseMPC* RacingMPCSolverNode::get_mpc()
+{
+  return mpc_.get();
 }
 
 void RacingMPCSolverNode::solve_mpc_callback(
