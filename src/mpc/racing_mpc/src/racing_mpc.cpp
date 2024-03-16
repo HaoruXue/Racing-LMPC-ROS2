@@ -41,6 +41,8 @@ RacingMPC::RacingMPC(
   X_(opti_.variable(model_->nx(), config_->N)),
   U_(opti_.variable(model_->nu(), config_->N - 1)),
   dU_(opti_.variable(model_->nu(), config_->N - 1)),
+  scale_x_param_(opti_.parameter(model_->nx(), 1)),
+  scale_u_param_(opti_.parameter(model_->nu(), 1)),
   X_ref_(opti_.parameter(model_->nx(), config_->N)),
   U_ref_(opti_.parameter(model_->nu(), config_->N - 1)),
   T_ref_(opti_.parameter(1, config_->N - 1)),
@@ -59,7 +61,7 @@ RacingMPC::RacingMPC(
   using casadi::MX;
   using casadi::Slice;
 
-  // furture adjust x scale
+  // further adjust x scale
   scale_x_(XIndex::PX) = config_->x_max(XIndex::VX);
   scale_x_(XIndex::PY) = config_->average_track_width;
   scale_x_(XIndex::YAW) = M_PI;
@@ -179,9 +181,9 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
     const auto & U_optm_ref = in.at("U_optm_ref");
     const auto & T_optm_ref = in.at("T_optm_ref");
     const auto & dU_optm_ref = in.at("dU_optm_ref");
-    opti_.set_initial(X_ * scale_x_, X_optm_ref - x_offset);
-    opti_.set_initial(U_ * scale_u_, U_optm_ref);
-    opti_.set_initial(dU_ * scale_u_, dU_optm_ref);
+    opti_.set_initial(X_, (X_optm_ref - x_offset) / scale_x_);
+    opti_.set_initial(U_, U_optm_ref / scale_u_);
+    opti_.set_initial(dU_, dU_optm_ref / scale_u_);
     opti_.set_value(T_ref_, T_optm_ref);
   } else {
     throw std::runtime_error("No optm reference given.");
@@ -200,6 +202,8 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
   opti_.set_value(curvatures_, curvatures);
   opti_.set_value(vel_ref_, vel_ref);
   opti_.set_value(bank_angle_, bank_angle);
+  opti_.set_value(scale_x_param_, scale_x_);
+  opti_.set_value(scale_u_param_, scale_u_);
 
   // initialize subclass variables
   init_solve(in, out, stats);
@@ -279,6 +283,34 @@ void RacingMPC::create_warm_start(const casadi::DMDict & in, casadi::DMDict & ou
   out["U_ref"] = U_ref;
 }
 
+casadi::Function RacingMPC::to_function()
+{
+  if (config_->learning)
+  {
+    throw std::runtime_error("Cannot convert to function for learning MPC.");
+  }
+  const auto inputs = casadi::MXVector{
+    X_, U_, dU_, boundary_slack_,
+    scale_x_param_, scale_u_param_, X_ref_, U_ref_, T_ref_,
+    x_ic_, u_ic_,
+    bound_left_, bound_right_, total_length_, bank_angle_, curvatures_, vel_ref_};
+  const auto outputs = casadi::MXVector{X_, U_, dU_, boundary_slack_, cost_};
+  const auto input_names = std::vector<std::string>{
+    "X", "U", "dU", "boundary_slack",
+    "scale_x_param", "scale_u_param", "X_ref", "U_ref", "T_ref",
+    "x_ic", "u_ic",
+    "bound_left", "bound_right", "total_length", "bank_angle", "curvatures", "vel_ref"};
+  const auto output_names = std::vector<std::string>{
+    "X_optm", "U_optm", "dU_optm", "boundary_slack_optm", "cost_optm"};
+  return opti_.to_function(
+    "racing_mpc_function",
+    inputs,
+    outputs,
+    input_names,
+    output_names
+  );
+}
+
 BaseVehicleModel & RacingMPC::get_model()
 {
   return *model_;
@@ -295,9 +327,9 @@ void RacingMPC::build_tracking_cost(casadi::MX & cost)
   using casadi::Slice;
 
   // --- MPC stage cost ---
-  const auto x0 = X_(Slice(), 0) * scale_x_;
+  const auto x0 = X_(Slice(), 0) * scale_x_param_;
   for (size_t i = 0; i < config_->N - 1; i++) {
-    const auto xi = X_(Slice(), i) * scale_x_;
+    const auto xi = X_(Slice(), i) * scale_x_param_;
     const auto ui = U_(Slice(), i - 1) * scale_u_;
     const auto dui = dU_(Slice(), i - 1) * scale_u_;
     // xi start with 1 since x0 must equal to x_ic and there is nothing we can do about it
@@ -317,8 +349,8 @@ void RacingMPC::build_tracking_cost(casadi::MX & cost)
   }
 
   // terminal cost
-  const auto xN = X_(Slice(), config_->N - 1) * scale_x_;
-  const auto uN = U_(Slice(), config_->N - 2) * scale_u_;
+  const auto xN = X_(Slice(), config_->N - 1) * scale_x_param_;
+  const auto uN = U_(Slice(), config_->N - 2) * scale_u_param_;
   const auto x_base_N = model_->to_base_state()(casadi::MXDict{{"x", xN}, {"u", uN}}).at("x_out");
   const auto dv = x_base_N(XIndex::VX) - vel_ref_(config_->N - 1);
   cost += x_base_N(XIndex::PY) * x_base_N(XIndex::PY) * config_->q_contour * 10.0;
@@ -336,7 +368,7 @@ void RacingMPC::build_lmpc_cost(casadi::MX & cost)
   convex_combi_ = opti_.variable(config_->num_ss_pts);
   ss_ = opti_.parameter(model_->nx(), config_->num_ss_pts);
   ss_costs_ = opti_.parameter(1, config_->num_ss_pts);
-  const auto xN = X_(Slice(), -1) * scale_x_;
+  const auto xN = X_(Slice(), -1) * scale_x_param_;
   const auto xN_combi = MX::mtimes({ss_, convex_combi_});
   // convex combination constraint
   opti_.subject_to(convex_combi_ >= 0.0);
@@ -357,8 +389,8 @@ void RacingMPC::build_lmpc_cost(casadi::MX & cost)
 
   // control effort and rate cost
   for (size_t i = 0; i < config_->N - 1; i++) {
-    const auto ui = U_(Slice(), i - 1) * scale_u_;
-    const auto dui = dU_(Slice(), i - 1) * scale_u_;
+    const auto ui = U_(Slice(), i - 1) * scale_u_param_;
+    const auto dui = dU_(Slice(), i - 1) * scale_u_param_;
     cost += MX::mtimes({ui.T(), config_->R, ui});
     cost += MX::mtimes({dui.T(), config_->R_d, dui});
   }
@@ -370,11 +402,11 @@ void RacingMPC::build_boundary_constraint(casadi::MX & cost)
   using casadi::Slice;
 
   bool enable_boundary_slack = static_cast<double>(config_->q_boundary) > 0.0;
-  const auto PY = X_(XIndex::PY, Slice()) * scale_x_(XIndex::PY);
+  const auto PY = X_(XIndex::PY, Slice()) * scale_x_param_(XIndex::PY);
   const auto margin = config_->margin + model_->get_base_config().chassis_config->b / 2.0;
   if (enable_boundary_slack) {
     boundary_slack_ = opti_.variable(1, config_->N);
-    const auto boundary_slack = boundary_slack_ * scale_x_(XIndex::PY);
+    const auto boundary_slack = boundary_slack_ * scale_x_param_(XIndex::PY);
     opti_.subject_to(
       opti_.bounded(
         bound_right_ + margin, PY + boundary_slack,
@@ -391,13 +423,13 @@ void RacingMPC::build_dynamics_constraint()
   using casadi::Slice;
   // --- model constraints ---
   for (size_t i = 0; i < config_->N - 1; i++) {
-    const auto xi = X_(Slice(), i) * scale_x_;
-    const auto xip1 = X_(Slice(), i + 1) * scale_x_;
-    const auto ui = U_(Slice(), i) * scale_u_;
+    const auto xi = X_(Slice(), i) * scale_x_param_;
+    const auto xip1 = X_(Slice(), i + 1) * scale_x_param_;
+    const auto ui = U_(Slice(), i) * scale_u_param_;
     const auto ti = T_ref_(i);
     const auto k = curvatures_(i);
     const auto bank_angle = bank_angle_(i);
-    const auto dui = dU_(Slice(), i) * scale_u_;
+    const auto dui = dU_(Slice(), i) * scale_u_param_;
 
     // primal bounds
     opti_.subject_to(opti_.bounded(config_->x_min, xi, config_->x_max));
@@ -435,7 +467,7 @@ void RacingMPC::build_dynamics_constraint()
     if (i == 0) {
       uim1 = u_ic_;
     } else {
-      uim1 = U_(Slice(), i - 1) * scale_u_;
+      uim1 = U_(Slice(), i - 1) * scale_u_param_;
     }
     opti_.subject_to(uim1 + dui * ti == ui);
   }
@@ -445,7 +477,7 @@ void RacingMPC::build_initial_constraint()
   using casadi::MX;
   using casadi::Slice;
   // --- initial state constraint ---
-  const auto x0 = X_(Slice(), 0) * scale_x_;
+  const auto x0 = X_(Slice(), 0) * scale_x_param_;
   opti_.subject_to(x0 == x_ic_);
 }
 

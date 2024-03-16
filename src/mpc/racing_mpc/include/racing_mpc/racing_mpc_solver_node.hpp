@@ -44,7 +44,7 @@ class RacingMPCSolverNode : public rclcpp::Node
 {
 public:
   explicit RacingMPCSolverNode(const rclcpp::NodeOptions & options);
-
+  BaseMPC* get_mpc();
 protected:
   // mpc solve service
   rclcpp::Service<SolveMPC>::SharedPtr solve_mpc_srv_;

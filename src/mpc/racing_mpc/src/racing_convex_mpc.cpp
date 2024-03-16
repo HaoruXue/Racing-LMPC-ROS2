@@ -58,7 +58,7 @@ RacingConvexMPC::RacingConvexMPC(
   using casadi::SX;
   using casadi::Slice;
 
-  // furture adjust x scale
+  // further adjust x scale
   scale_x_(XIndex::PX) = config_->x_max(XIndex::VX);
   scale_x_(XIndex::PY) = config_->average_track_width;
   scale_x_(XIndex::YAW) = M_PI;
