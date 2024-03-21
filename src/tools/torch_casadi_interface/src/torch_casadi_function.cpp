@@ -106,16 +106,17 @@ casadi::DMVector TorchCasadiJacobianFunction::eval(const casadi::DMVector & arg)
   }
   // convert to fp32
   input = input.to(torch::kFloat32);
+  // tile the input to match the output size
+  input = input.repeat({out_dim_, 1});
   input.requires_grad_(true);
   auto output = module_->forward({input}).toTensor();
-  auto jacobian = torch::zeros({out_dim_, in_dim_}, torch::kFloat32);
-  auto grad = torch::zeros_like(output);
-  for (casadi_int i = 0; i < out_dim_; i++) {
-    grad[0][i] = 1;
-    jacobian[i] = torch::autograd::grad(
-      {output}, {input}, {grad}, true, false)[0][0];
-    grad[0][i] = 0;
+  auto grads = torch::eye(out_dim_);
+  if (use_cuda_) {
+    grads = grads.to(torch::kCUDA);
   }
+  auto jacobian = torch::autograd::grad(
+    {output}, {input}, {grads}, true, false)[0];
+  
   jacobian = jacobian.to(torch::kDouble);
   if (use_cuda_) {
     jacobian = jacobian.to(torch::kCPU);
