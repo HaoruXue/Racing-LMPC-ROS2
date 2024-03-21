@@ -104,3 +104,34 @@ TEST(TorchCasadiFunctionTest, TestTorchCasadiJacobianFunction)
   }
   SUCCEED();
 }
+
+TEST(TorchCasadiFunctionMapTest, TestTorchCasadiJacobianFunction)
+{
+  auto module = std::make_shared<torch::jit::script::Module>(torch::jit::load(test_model_dir));
+  module->eval();
+  if (torch::cuda::is_available()) {
+    module->to(torch::kCUDA);
+    std::cout << "Module moved to GPU." << std::endl;
+  } else {
+    std::cout << "CUDA is not available. Module remains on CPU." << std::endl;
+  }
+  // auto module_optimized = std::make_shared<torch::jit::script::Module>(torch::jit::optimize_for_inference(*module));
+  torch_casadi_interface::TorchCasadiFunction eval_function(module, 8, 6);
+  casadi::DMVector arg = {casadi::DM::rand(8, 40)};
+  const auto x_sym = casadi::MX::sym("x", 8, 1);
+  const auto sym_out = eval_function({x_sym})[0];
+  const auto jacobian_sym = casadi::MX::jacobian(sym_out, x_sym);
+  casadi::Function jacobian_function = casadi::Function("jacobian", {x_sym}, {jacobian_sym}).map(40);
+
+  // infer once to warm up
+  eval_function(arg);
+
+  const auto start_time = std::chrono::high_resolution_clock::now();
+  for (int i = 0; i < 100; i++) {
+    jacobian_function(arg);
+  }
+  const auto end_time = std::chrono::high_resolution_clock::now();
+  GTEST_COUT << "Jacobian Compute Time: " << std::chrono::duration_cast<std::chrono::microseconds>(
+    end_time - start_time).count() / 100 << " us" << std::endl;
+  SUCCEED();
+}
