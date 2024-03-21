@@ -23,8 +23,8 @@ elseif(${ROS_DISTRO} STREQUAL "humble")
   add_compile_definitions(ROS_DISTRO_HUMBLE)
 endif()
 
-list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/Softwares/libtorch-cuda/libtorch")
-
+# list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/Softwares/libtorch-cuda/libtorch")
+list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/Softwares/libtorch")
 # Require that dependencies from package.xml be available.
 find_package(casadi REQUIRED)
 find_package(Torch REQUIRED)
