@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(vehicle_model_factory)
+project(neural_dynamics_model)
 
 # Default to C++17.
 if(NOT CMAKE_CXX_STANDARD)
@@ -36,11 +36,15 @@ ament_auto_find_build_dependencies(REQUIRED
 )
 
 set(${PROJECT_NAME}_SRC
-  src/vehicle_model_factory.cpp
+  src/base_neural_dynamics_model.cpp
+  src/ros_param_loader.cpp
+  src/full_discrete_model.cpp
 )
 
 set(${PROJECT_NAME}_HEADER
-  include/vehicle_model_factory/vehicle_model_factory.hpp
+  include/neural_dynamics_model/base_neural_dynamics_model.hpp
+  include/neural_dynamics_model/ros_param_loader.hpp
+  include/neural_dynamics_model/full_discrete_model.hpp
 )
 
 ament_auto_add_library(${PROJECT_NAME} SHARED
@@ -53,11 +57,13 @@ target_link_libraries(${PROJECT_NAME} casadi "${TORCH_LIBRARIES}" cuda)
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
-  set(TEST_SOURCES test/test_vehicle_model_factory.cpp)
-  set(TEST_EXE test_vehicle_model_factory)
-  ament_add_gtest(${TEST_EXE} ${TEST_SOURCES})
-  target_link_libraries(${TEST_EXE} ${PROJECT_NAME})
+  # set(TEST_SOURCES test/test_neural_dynamics_model.cpp)
+  # set(TEST_EXE test_neural_dynamics_model)
+  # ament_add_gtest(${TEST_EXE} ${TEST_SOURCES})
+  # target_link_libraries(${TEST_EXE} ${PROJECT_NAME})
 endif()
 
 # Create & install ament package.
-ament_auto_package()
+ament_auto_package(INSTALL_TO_SHARE
+  param
+)

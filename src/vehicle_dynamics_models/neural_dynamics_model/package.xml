@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>vehicle_model_factory</name>
+  <name>neural_dynamics_model</name>
   <version>1.0.0</version>
-  <description>factory for loading vehicle models</description>
+  <description>nerual dynamics models</description>
   <maintainer email="haorux@andrew.cmu.edu">Haoru Xue</maintainer>
   <license>LGPLv3</license>
 
@@ -16,11 +16,9 @@
   <depend>rclcpp</depend>
   <depend>backward_ros</depend>
 
+  <depend>lmpc_utils</depend>
   <depend>base_vehicle_model</depend>
-  <depend>kinematic_bicycle_model</depend>
-  <depend>single_track_planar_model</depend>
-  <depend>double_track_planar_model</depend>
-  <depend>neural_dynamics_model</depend>
+  <depend>torch_casadi_interface</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
