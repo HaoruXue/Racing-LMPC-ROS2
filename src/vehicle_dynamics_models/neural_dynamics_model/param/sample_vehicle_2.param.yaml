@@ -1,0 +1,12 @@
+/**:
+  ros__parameters:
+    base_neural_dynamics:
+      fd_max: 1000.0 # max driving force
+      fb_max: -2000.0 # max brake force
+      td: 0.1 # time constant for throttle
+      tb: 0.5 # time constant for brake
+      v_max: 25.0 # max velocity constraint
+      p_max: 15000.0 # max engine power
+      mu: 1.5 # track - tyre friction coefficient
+      lon_force_scale: 1000.0 # scale the lon control force (1000 for kN)
+      use_cuda: false # whether to infer on cuda
