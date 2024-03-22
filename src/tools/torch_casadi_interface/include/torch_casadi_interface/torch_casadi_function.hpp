@@ -28,7 +28,7 @@ class TorchCasadiEvalFunction : public casadi::Callback
 public:
   TorchCasadiEvalFunction(
     std::shared_ptr<torch::jit::script::Module> module_,
-    const casadi_int & in_dim, const casadi_int & out_dim);
+    const casadi_int & in_dim, const casadi_int & out_dim, bool use_cuda = false);
   virtual ~TorchCasadiEvalFunction() = default;
 
   void init() override;
@@ -50,7 +50,7 @@ class TorchCasadiJacobianFunction : public TorchCasadiEvalFunction
 public:
   TorchCasadiJacobianFunction(
     std::shared_ptr<torch::jit::script::Module> module_,
-    const casadi_int & in_dim, const casadi_int & out_dim);
+    const casadi_int & in_dim, const casadi_int & out_dim, bool use_cuda = false);
   virtual ~TorchCasadiJacobianFunction() = default;
   casadi_int get_n_in() override;
   casadi::Sparsity get_sparsity_in(casadi_int i) override;
@@ -63,7 +63,7 @@ class TorchCasadiFunction : public TorchCasadiEvalFunction
 public:
   TorchCasadiFunction(
     std::shared_ptr<torch::jit::script::Module> module_,
-    const casadi_int & in_dim, const casadi_int & out_dim);
+    const casadi_int & in_dim, const casadi_int & out_dim, bool use_cuda = false);
   virtual ~TorchCasadiFunction() = default;
   bool has_jacobian() const override;
   Function get_jacobian(

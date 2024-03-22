@@ -21,14 +21,9 @@ namespace torch_casadi_interface
 {
 TorchCasadiEvalFunction::TorchCasadiEvalFunction(
   std::shared_ptr<torch::jit::script::Module> module,
-  const casadi_int & in_dim, const casadi_int & out_dim)
-: module_(module), in_dim_(in_dim), out_dim_(out_dim)
+  const casadi_int & in_dim, const casadi_int & out_dim, bool use_cuda)
+: module_(module), in_dim_(in_dim), out_dim_(out_dim), use_cuda_(use_cuda)
 {
-  if (torch::cuda::is_available()) {
-    use_cuda_ = true;
-  } else {
-    use_cuda_ = false;
-  }
 }
 
 void TorchCasadiEvalFunction::init()
@@ -84,8 +79,8 @@ casadi::Sparsity TorchCasadiEvalFunction::get_sparsity_out(casadi_int i)
 
 TorchCasadiJacobianFunction::TorchCasadiJacobianFunction(
   std::shared_ptr<torch::jit::script::Module> module,
-  const casadi_int & in_dim, const casadi_int & out_dim)
-: TorchCasadiEvalFunction(module, in_dim, out_dim)
+  const casadi_int & in_dim, const casadi_int & out_dim, bool use_cuda)
+: TorchCasadiEvalFunction(module, in_dim, out_dim, use_cuda)
 {
   construct("torch_casadi_jacobian_function");
 }
@@ -147,9 +142,9 @@ casadi::Sparsity TorchCasadiJacobianFunction::get_sparsity_out(casadi_int i)
 
 TorchCasadiFunction::TorchCasadiFunction(
   std::shared_ptr<torch::jit::script::Module> module,
-  const casadi_int & in_dim, const casadi_int & out_dim)
+  const casadi_int & in_dim, const casadi_int & out_dim, bool use_cuda)
 : TorchCasadiEvalFunction(module, in_dim, out_dim),
-  jacobian_function_(TorchCasadiJacobianFunction(module, in_dim, out_dim))
+  jacobian_function_(TorchCasadiJacobianFunction(module, in_dim, out_dim, use_cuda))
 {
   construct("torch_casadi_function");
 }
