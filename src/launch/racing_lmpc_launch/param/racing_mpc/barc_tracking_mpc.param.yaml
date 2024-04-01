@@ -5,39 +5,39 @@
       max_iter: 200
       tol: 1e-3
       interface: opti
-      n: 60
-      dt: 0.025
+      n: 40
+      dt: 0.03
       margin: 0.1
       average_track_width: 1.0
       verbose: false
       jit: true
       num_mpc: 1
       num_cycle_to_switch: 10
-      max_extrapolate_horizon: 60
+      max_extrapolate_horizon: 30
 
       q_contour: 1.0
       q_heading: 1.0
       q_boundary: 20.0 # track boundary slack cost. 0 to disable (hard constraint)
       q_follow: 0.2
       q_vel: 0.2
-      q_vy: 0.001
-      q_vyaw: 0.001
+      q_vy: 0.01
+      q_vyaw: 0.01
       r: [
-        0.01, 0.0,
-        0.0, 0.01,
+        1e-3, 0.0,
+        0.0, 0.1,
       ]
       r_d: [
-        0.01, 0.0,
+        1e-4, 0.0,
         0.0, 0.01,
       ]
       max_vel_ref_diff: 1.0 # max difference between reference velocity and actual velocity
 
       x_max: [.inf, .inf, .inf, 6.0, 1.0, 3.0]
       x_min: [-.inf, -.inf, -.inf, 0.1, -1.0, -3.0]
-      u_max: [0.01, 0.33]
-      u_min: [-0.01, -0.33]
-      du_max: [0.02, 0.66]
-      du_min: [-0.02, -0.66]
+      u_max: [5.0, 0.523599]
+      u_min: [-5.0, -0.523599]
+      du_max: [30.0, 0.66]
+      du_min: [-30.0, -0.66]
 
       step_mode: "continuous"
 
