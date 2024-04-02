@@ -34,14 +34,7 @@ def generate_launch_description():
     mpc_config = get_share_file(
         "racing_lmpc_launch", "param", "racing_mpc", "lecar_tracking_mpc.param.yaml"
     )
-    sim_track_file = get_share_file("racing_trajectory", "test_data", "lecar", "15_lecar_optm.txt")
     track_file_folder = get_share_file("racing_trajectory", "test_data", "lecar")
-
-    sim_vd_model_name = DeclareLaunchArgument(
-        "sim_vehicle_model_name",
-        default_value="single_track_planar_model",
-        description="vehicle model name",
-    )
 
     mpc_vd_model_name = DeclareLaunchArgument(
         "mpc_vehicle_model_name",
@@ -52,35 +45,7 @@ def generate_launch_description():
     return LaunchDescription(
         [
             declare_use_sim_time_cmd,
-            sim_vd_model_name,
             mpc_vd_model_name,
-            Node(
-                package="racing_simulator",
-                executable="racing_simulator_node_exe",
-                name="continuous_racing_simulator_node",
-                output="screen",
-                parameters=[
-                    sim_config,
-                    dt_model_config,
-                    base_model_config,
-                    use_sim_time,
-                    {
-                        "racing_simulator.race_track_file_path": sim_track_file,
-                        "modeling.use_frenet": False,
-                        # "racing_simulator.x0": [-100.0, -5.0, 3.14, 15.0, 0.0, 0.0]
-                        # "racing_simulator.x0": [50.0, 5.0, 3.14, 15.0, 0.0, 0.0]
-                        "racing_simulator.x0": [0.0, 0.0, 0.0, 2.0, 0.0, 0.0]
-                        # "racing_simulator.x0": [-350.0, -20.0, 3.14, 15.0, 0.0, 0.0]
-                        # "racing_simulator.x0": [-67.9, 247.6, -2.61799, 15.0, 0.0, 0.0]
-                    },
-                ],
-                remappings=[
-                    ("abscissa_polygon", "/simulation/abscissa_polygon"),
-                    ("left_boundary_polygon", "/simulation/left_boundary_polygon"),
-                    ("right_boundary_polygon", "/simulation/right_boundary_polygon"),
-                ],
-                emulate_tty=True,
-            ),
             Node(
                 package="racing_mpc",
                 executable="racing_mpc_node_exe",
@@ -97,8 +62,8 @@ def generate_launch_description():
                         ),
                         "racing_mpc_node.default_traj_idx": 15,
                         "racing_mpc_node.traj_folder": track_file_folder,
-                        "racing_mpc_node.velocity_profile_scale": 0.9,
-                        "racing_mpc_node.delay_step": 0,
+                        "racing_mpc_node.velocity_profile_scale": 1.0,
+                        "racing_mpc_node.delay_step": 2,
                     },
                 ],
                 remappings=[],
