@@ -63,7 +63,7 @@ def generate_launch_description():
                         "racing_mpc_node.default_traj_idx": 15,
                         "racing_mpc_node.traj_folder": track_file_folder,
                         "racing_mpc_node.velocity_profile_scale": 1.0,
-                        "racing_mpc_node.delay_step": 2,
+                        "racing_mpc_node.delay_step": 0,
                     },
                 ],
                 remappings=[],
