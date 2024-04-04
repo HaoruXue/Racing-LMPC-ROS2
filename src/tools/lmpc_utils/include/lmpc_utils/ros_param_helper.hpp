@@ -46,10 +46,10 @@ T declare_parameter(rclcpp::Node * node, const char * name)
       e.what());
     throw e;
   } catch (rclcpp::exceptions::ParameterAlreadyDeclaredException & e) {
-    RCLCPP_FATAL(
+    RCLCPP_WARN(
       node->get_logger(), "Parameter \"%s\" is already declared: %s", name,
       e.what());
-    throw e;
+    return node->get_parameter(name).get_value<T>();
   }
 }
 

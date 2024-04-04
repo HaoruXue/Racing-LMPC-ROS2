@@ -23,8 +23,13 @@ elseif(${ROS_DISTRO} STREQUAL "humble")
   add_compile_definitions(ROS_DISTRO_HUMBLE)
 endif()
 
+list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/Softwares/libtorch-cuda/libtorch")
+# list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/Softwares/libtorch")
 # Require that dependencies from package.xml be available.
 find_package(casadi REQUIRED)
+find_package(Torch REQUIRED)
+find_package(CUDA REQUIRED)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies(REQUIRED
   ${${PROJECT_NAME}_BUILD_DEPENDS}
@@ -59,7 +64,7 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
   ${${PROJECT_NAME}_HEADER}
 )
 
-target_link_libraries(${PROJECT_NAME} casadi)
+target_link_libraries(${PROJECT_NAME} casadi "${TORCH_LIBRARIES}" cuda)
 
 ament_auto_add_executable(${PROJECT_NAME}_node_exe
   src/racing_mpc_node_impl.cpp

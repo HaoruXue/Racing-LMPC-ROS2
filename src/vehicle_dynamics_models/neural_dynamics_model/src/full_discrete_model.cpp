@@ -24,7 +24,7 @@ namespace vehicle_model
 {
 namespace neural_dynamics_model
 {
-NeuralDynamicsModel::NeuralDynamicsModel(
+FullDiscreteModel::FullDiscreteModel(
   base_vehicle_model::BaseVehicleModelConfig::SharedPtr base_config,
   BaseNeuralDynamicsModelConfig::SharedPtr base_nn_config)
 : BaseNeuralDynamicsModel(base_config, base_nn_config),
@@ -32,13 +32,15 @@ NeuralDynamicsModel::NeuralDynamicsModel(
 {
   if (base_nn_config_->use_cuda) {
     model_->to(torch::kCUDA);
+  } else {
+    model_->to(torch::kCPU);
   }
   torch_func_ = std::make_shared<torch_casadi_interface::TorchCasadiFunction>(
       model_, 5, 6, base_nn_config_->use_cuda);
   compile_dynamics();
 }
 
-void NeuralDynamicsModel::add_nlp_constraints(casadi::Opti & opti, const casadi::MXDict & in)
+void FullDiscreteModel::add_nlp_constraints(casadi::Opti & opti, const casadi::MXDict & in)
 {
   // const auto & u = in.at("u");
   // casadi::MX fd, fb, delta;
@@ -153,7 +155,7 @@ void NeuralDynamicsModel::add_nlp_constraints(casadi::Opti & opti, const casadi:
   // }
 }
 
-void NeuralDynamicsModel::calc_lon_control(
+void FullDiscreteModel::calc_lon_control(
   const casadi::DMDict & in, double & throttle,
   double & brake_kpa) const
 {
@@ -171,7 +173,7 @@ void NeuralDynamicsModel::calc_lon_control(
   }
 }
 
-void NeuralDynamicsModel::calc_lat_control(
+void FullDiscreteModel::calc_lat_control(
   const casadi::DMDict & in,
   double & steering_rad) const
 {
@@ -179,7 +181,7 @@ void NeuralDynamicsModel::calc_lat_control(
   steering_rad = u[UIndex::STEER];
 }
 
-void NeuralDynamicsModel::compile_dynamics()
+void FullDiscreteModel::compile_dynamics()
 {
   using casadi::MX;
 
@@ -199,11 +201,11 @@ void NeuralDynamicsModel::compile_dynamics()
   const auto delta = u(UIndex::STEER);
 
   // predict body frame states from NN
-  const auto nn_input = vertcat(vx, vy, omega, u_a, delta);
+  const auto nn_input = vertcat(u_a, delta, vx, vy, omega);
   const auto nn_output = torch_func_->operator()(nn_input)[0];
-  const auto px_d_body = nn_output(XIndex::PX);
-  const auto py_d_body = nn_output(XIndex::PY);
-  auto phi_d = nn_output(XIndex::YAW);
+  const auto px_d_body = nn_output(3);
+  const auto py_d_body = nn_output(4);
+  auto phi_d = nn_output(5);
   
   // convert px_d_body, py_d_body to global frame
  auto px_d = px_d_body * cos(phi) - py_d_body * sin(phi);
@@ -220,7 +222,7 @@ void NeuralDynamicsModel::compile_dynamics()
     // py_dot = vx * sin(phi) + vy * cos(phi) * cos(bank);
   }
 
-  const auto x_next = vertcat(px + px_d , py + py_d, phi + phi_d, nn_output(casadi::Slice(XIndex::VX, XIndex::VYAW + 1)));
+  const auto x_next = vertcat(px + px_d , py + py_d, phi + phi_d, nn_output(casadi::Slice(0, 3)));
 
   dynamics_ = casadi::Function(
     "neural_dynamics_model_dynamics",
@@ -242,7 +244,13 @@ void NeuralDynamicsModel::compile_dynamics()
   );
 
   // discretize dynamics
-  discrete_dynamics_ = dynamics_;
+  const auto dt_sym = MX::sym("dt", 1);
+  discrete_dynamics_ = casadi::Function(
+    "neural_dynamics_model_dynamics",
+    {x, u, k, dt, bank},
+    {x_next},
+    {"x", "u", "k", "dt", "bank"},
+    {"xip1"});
   const auto gd = x_next - (MX::mtimes(Ad, x) + MX::mtimes(Bd, u));
 
   discrete_dynamics_jacobian_ = casadi::Function(

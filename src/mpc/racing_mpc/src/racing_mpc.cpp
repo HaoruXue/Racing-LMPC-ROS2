@@ -75,7 +75,7 @@ RacingMPC::RacingMPC(
   // configure solver
   if (full_dynamics) {
     auto p_opts = casadi::Dict{
-      {"expand", true},
+      {"expand", false},
       {"print_time", config_->verbose ? true : false},
       {"error_on_fail", true}
     };
@@ -93,7 +93,7 @@ RacingMPC::RacingMPC(
     opti_.solver("ipopt", p_opts, s_opts);
   } else {
     auto p_opts = casadi::Dict{
-      {"expand", true},
+      {"expand", false},
       {"print_time", config_->verbose ? true : false},
       {"error_on_fail", true},
       {"osqp", casadi::Dict

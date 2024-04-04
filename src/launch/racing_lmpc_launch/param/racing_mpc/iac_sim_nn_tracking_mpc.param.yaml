@@ -11,7 +11,7 @@
       margin: 0.5
       average_track_width: 10.0
       verbose: false
-      jit: true
+      jit: false
       num_mpc: 1
       num_cycle_to_switch: 10
       max_extrapolate_horizon: 80

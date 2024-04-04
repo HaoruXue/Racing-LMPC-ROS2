@@ -65,6 +65,7 @@ protected:
   RacingTrajectory::SharedPtr track_ {};
   ROSTrajectoryVisualizer::UniquePtr vis_ {};
   BaseVehicleModel::SharedPtr model_ {};
+  BaseVehicleModel::SharedPtr model_full_ {};
   MultiMPCManager::UniquePtr mpc_manager_ {};
   RacingMPC::SharedPtr mpc_full_ {};  // used to compute initial guess
   lmpc::utils::MPCSolutionBuffer buffer_;

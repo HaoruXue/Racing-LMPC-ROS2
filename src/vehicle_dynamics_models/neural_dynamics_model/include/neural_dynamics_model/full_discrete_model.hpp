@@ -32,13 +32,13 @@ namespace vehicle_model
 namespace neural_dynamics_model
 {
 
-class NeuralDynamicsModel final : public BaseNeuralDynamicsModel
+class FullDiscreteModel final : public BaseNeuralDynamicsModel
 {
 public:
-  typedef std::shared_ptr<NeuralDynamicsModel> SharedPtr;
-  typedef std::unique_ptr<NeuralDynamicsModel> UniquePtr;
+  typedef std::shared_ptr<FullDiscreteModel> SharedPtr;
+  typedef std::unique_ptr<FullDiscreteModel> UniquePtr;
 
-  NeuralDynamicsModel(
+  FullDiscreteModel(
     base_vehicle_model::BaseVehicleModelConfig::SharedPtr base_config,
     BaseNeuralDynamicsModelConfig::SharedPtr base_nn_config);
 

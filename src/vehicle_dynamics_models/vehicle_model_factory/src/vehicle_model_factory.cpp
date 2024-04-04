@@ -46,7 +46,7 @@ base_vehicle_model::BaseVehicleModel::SharedPtr load_vehicle_model(
     return std::make_shared<double_track_planar_model::DoubleTrackPlanarModel>(base_config, config);
   } else if (model_name == "neural_dynamics_model_full_discrete") {
     const auto config = lmpc::vehicle_model::neural_dynamics_model::load_parameters(node);
-    return std::make_shared<neural_dynamics_model::NeuralDynamicsModel>(base_config, config);
+    return std::make_shared<neural_dynamics_model::FullDiscreteModel>(base_config, config);
   } else {
     RCLCPP_FATAL(node->get_logger(), "Vehicle model %s cannot be found.", model_name.c_str());
     return nullptr;
@@ -89,11 +89,11 @@ base_vehicle_model::BaseVehicleModel::SharedPtr copy_vehicle_model(
       shared_config);
   } else if (model_name == "neural_dynamics_model_full_discrete") {
     const auto & config =
-      dynamic_cast<const neural_dynamics_model::NeuralDynamicsModel *>(model.get())->
+      dynamic_cast<const neural_dynamics_model::FullDiscreteModel *>(model.get())->
       get_base_nn_config();
     const auto shared_config =
       std::make_shared<neural_dynamics_model::BaseNeuralDynamicsModelConfig>(config);
-    return std::make_shared<neural_dynamics_model::NeuralDynamicsModel>(
+    return std::make_shared<neural_dynamics_model::FullDiscreteModel>(
       shared_base_config,
       shared_config);
   } else {

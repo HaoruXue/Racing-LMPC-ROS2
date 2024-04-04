@@ -46,6 +46,9 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   model_(vehicle_model::vehicle_model_factory::load_vehicle_model(
       utils::declare_parameter<std::string>(
         this, "racing_mpc_node.vehicle_model_name"), this)),
+  model_full_(vehicle_model::vehicle_model_factory::load_vehicle_model(
+      utils::declare_parameter<std::string>(
+        this, "racing_mpc_node.full_vehicle_model_name"), this)),
   buffer_(),
   speed_limit_(config_->x_max(XIndex::VX).get_elements()[0]),
   speed_scale_(utils::declare_parameter<double>(this, "racing_mpc_node.velocity_profile_scale")),
@@ -62,7 +65,7 @@ RacingMPCNode::RacingMPCNode(const rclcpp::NodeOptions & options)
   auto full_config = std::make_shared<RacingMPCConfig>(*config_);
   full_config->max_cpu_time = 10.0;
   full_config->max_iter = 1000;
-  mpc_full_ = std::make_shared<RacingMPC>(full_config, model_, true);
+  mpc_full_ = std::make_shared<RacingMPC>(full_config, model_full_, true);
   mpc_full_->init();
 
   // prepare MPC manager
@@ -299,6 +302,7 @@ void RacingMPCNode::on_step_timer()
       last_x_(Slice(), i) =
         discrete_dynamics_(casadi::DMVector{last_x_(Slice(), i - 1), last_u_(Slice(), i - 1)})[0];
     }
+    std::cout << last_x_ << std::endl;
     sol_in["X_optm_ref"] = last_x_;
     sol_in["U_optm_ref"] = last_u_;
     sol_in["dU_optm_ref"] = last_du_;

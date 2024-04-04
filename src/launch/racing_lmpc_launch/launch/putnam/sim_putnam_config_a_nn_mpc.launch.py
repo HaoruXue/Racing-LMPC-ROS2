@@ -33,14 +33,19 @@ def generate_launch_description():
     base_model_config = get_share_file(
         "racing_lmpc_launch", "param", "iac_car", "iac_car_base.param.yaml"
     )
+    nn_model_config = get_share_file(
+        "racing_lmpc_launch", "param", "iac_car", "iac_car_nn_full_discrete.param.yaml"
+    )
     mpc_config = get_share_file(
-        "racing_lmpc_launch", "param", "racing_mpc", "iac_car_tracking_mpc.param.yaml"
+        "racing_lmpc_launch", "param", "racing_mpc", "iac_sim_nn_tracking_mpc.param.yaml"
     )
     sim_track_file = get_share_file(
         "racing_trajectory", "test_data", "putnam", "10_putnam_optm.txt"
     )
     track_file_folder = get_share_file("racing_trajectory", "test_data", "putnam")
-
+    nn_model_path = get_share_file(
+        "racing_lmpc_launch", "config", "neural_dynamics_models", "iac_sim", "iac_sim_full_discrete.pt"
+    )
     sim_vd_model_name = DeclareLaunchArgument(
         "sim_vehicle_model_name",
         default_value="single_track_planar_model",
@@ -49,7 +54,7 @@ def generate_launch_description():
 
     mpc_vd_model_name = DeclareLaunchArgument(
         "mpc_vehicle_model_name",
-        default_value="single_track_planar_model",
+        default_value="neural_dynamics_model_full_discrete",
         description="vehicle model name",
     )
 
@@ -84,7 +89,7 @@ def generate_launch_description():
                         "modeling.use_frenet": False,
                         # "racing_simulator.x0": [-100.0, -5.0, 3.14, 15.0, 0.0, 0.0]
                         # "racing_simulator.x0": [50.0, 5.0, 3.14, 15.0, 0.0, 0.0]
-                        "racing_simulator.x0": [-10.0, 2.0, 3.14, 15.0, 0.0, 0.0]
+                        "racing_simulator.x0": [-10.0, 2.0, 3.14, 45.0, 0.0, 0.0]
                         # "racing_simulator.x0": [-350.0, -20.0, 3.14, 15.0, 0.0, 0.0]
                         # "racing_simulator.x0": [-67.9, 247.6, -2.61799, 15.0, 0.0, 0.0]
                     },
@@ -96,33 +101,37 @@ def generate_launch_description():
                 ],
                 emulate_tty=True,
             ),
-            Node(
-                package="racing_mpc",
-                executable="racing_mpc_node_exe",
-                name="racing_mpc_node",
-                output="screen",
-                parameters=[
-                    mpc_config,
-                    dt_model_config,
-                    base_model_config,
-                    use_sim_time,
-                    {
-                        "racing_mpc_node.full_vehicle_model_name": LaunchConfiguration(
-                            "sim_vehicle_model_name"
-                        ),
-                        "racing_mpc_node.vehicle_model_name": LaunchConfiguration(
-                            "mpc_vehicle_model_name"
-                        ),
-                        "racing_mpc_node.default_traj_idx": 10,
-                        "racing_mpc_node.traj_folder": track_file_folder,
-                        "racing_mpc_node.velocity_profile_scale": 1.0,
-                        "racing_mpc_node.delay_step": 0,
-                    },
-                ],
-                remappings=[],
-                # prefix=['taskset -c 22,23'],
-                emulate_tty=True,
-            ),
+            # Node(
+            #     package="racing_mpc",
+            #     executable="racing_mpc_node_exe",
+            #     name="racing_mpc_node",
+            #     output="screen",
+            #     parameters=[
+            #         mpc_config,
+            #         nn_model_config,
+            #         dt_model_config,
+            #         base_model_config,
+            #         use_sim_time,
+            #         {
+            #             "racing_mpc_node.full_vehicle_model_name": LaunchConfiguration(
+            #                 "sim_vehicle_model_name"
+            #             ),
+            #             "racing_mpc_node.vehicle_model_name": LaunchConfiguration(
+            #                 "mpc_vehicle_model_name"
+            #             ),
+            #             "racing_mpc_node.default_traj_idx": 10,
+            #             "racing_mpc_node.traj_folder": track_file_folder,
+            #             "racing_mpc_node.velocity_profile_scale": 0.9,
+            #             "racing_mpc_node.delay_step": 0,
+
+            #             "base_neural_dynamics.model_names": ["full_discrete"],
+            #             "base_neural_dynamics.model_paths": [nn_model_path],
+            #         },
+            #     ],
+            #     remappings=[],
+            #     # prefix=['taskset -c 22,23'],
+            #     emulate_tty=True,
+            # ),
             Node(
                 package="racing_mpc",
                 executable="racing_mpc_solver_node_exe",
@@ -130,13 +139,15 @@ def generate_launch_description():
                 output="screen",
                 parameters=[
                     mpc_config,
-                    dt_model_config,
+                    nn_model_config,
                     base_model_config,
                     use_sim_time,
                     {
                         "racing_mpc_node.vehicle_model_name": LaunchConfiguration(
                             "mpc_vehicle_model_name"
                         ),
+                        "base_neural_dynamics.model_names": ["full_discrete"],
+                        "base_neural_dynamics.model_paths": [nn_model_path],
                     },
                 ],
                 remappings=[
