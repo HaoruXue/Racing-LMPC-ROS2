@@ -13,13 +13,11 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import os
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.substitutions import LaunchConfiguration
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from lmpc_utils.lmpc_launch_utils import get_share_file, get_sim_time_launch_arg
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
 def generate_launch_description():
@@ -28,18 +26,16 @@ def generate_launch_description():
         "racing_lmpc_launch", "param", "racing_simulator", "continuous_simulator.param.yaml"
     )
     dt_model_config = get_share_file(
-        "racing_lmpc_launch", "param", "iac_car", "iac_car_single_track.param.yaml"
+        "racing_lmpc_launch", "param", "lecar", "lecar_single_track.param.yaml"
     )
     base_model_config = get_share_file(
-        "racing_lmpc_launch", "param", "iac_car", "iac_car_base.param.yaml"
+        "racing_lmpc_launch", "param", "lecar", "lecar_base.param.yaml"
     )
     mpc_config = get_share_file(
-        "racing_lmpc_launch", "param", "racing_mpc", "iac_car_tracking_mpc.param.yaml"
+        "racing_lmpc_launch", "param", "racing_mpc", "lecar_drifting.param.yaml"
     )
-    sim_track_file = get_share_file(
-        "racing_trajectory", "test_data", "putnam", "10_putnam_optm.txt"
-    )
-    track_file_folder = get_share_file("racing_trajectory", "test_data", "putnam")
+    sim_track_file = get_share_file("racing_trajectory", "test_data", "lecar_drift", "15_lecar_drift.txt")
+    track_file_folder = get_share_file("racing_trajectory", "test_data", "lecar_drift")
 
     sim_vd_model_name = DeclareLaunchArgument(
         "sim_vehicle_model_name",
@@ -58,44 +54,6 @@ def generate_launch_description():
             declare_use_sim_time_cmd,
             sim_vd_model_name,
             mpc_vd_model_name,
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    os.path.join(
-                        get_share_file("racing_lmpc_launch"),
-                        "launch",
-                        "iac_car",
-                        "urdf.launch.py",
-                    )
-                ),
-                # condition=IfCondition(LaunchConfiguration("vehicle_model_name") == "iac_car"),
-            ),
-            Node(
-                package="racing_simulator",
-                executable="racing_simulator_node_exe",
-                name="continuous_racing_simulator_node",
-                output="screen",
-                parameters=[
-                    sim_config,
-                    dt_model_config,
-                    base_model_config,
-                    use_sim_time,
-                    {
-                        "racing_simulator.race_track_file_path": sim_track_file,
-                        "modeling.use_frenet": False,
-                        # "racing_simulator.x0": [-100.0, -5.0, 3.14, 15.0, 0.0, 0.0]
-                        # "racing_simulator.x0": [50.0, 5.0, 3.14, 15.0, 0.0, 0.0]
-                        "racing_simulator.x0": [-10.0, 2.0, 3.14, 15.0, 0.0, 0.0]
-                        # "racing_simulator.x0": [-350.0, -20.0, 3.14, 15.0, 0.0, 0.0]
-                        # "racing_simulator.x0": [-67.9, 247.6, -2.61799, 15.0, 0.0, 0.0]
-                    },
-                ],
-                remappings=[
-                    ("abscissa_polygon", "/simulation/abscissa_polygon"),
-                    ("left_boundary_polygon", "/simulation/left_boundary_polygon"),
-                    ("right_boundary_polygon", "/simulation/right_boundary_polygon"),
-                ],
-                emulate_tty=True,
-            ),
             Node(
                 package="racing_mpc",
                 executable="racing_mpc_node_exe",
@@ -110,7 +68,7 @@ def generate_launch_description():
                         "racing_mpc_node.vehicle_model_name": LaunchConfiguration(
                             "mpc_vehicle_model_name"
                         ),
-                        "racing_mpc_node.default_traj_idx": 10,
+                        "racing_mpc_node.default_traj_idx": 15,
                         "racing_mpc_node.traj_folder": track_file_folder,
                         "racing_mpc_node.velocity_profile_scale": 1.0,
                         "racing_mpc_node.delay_step": 0,
@@ -134,6 +92,7 @@ def generate_launch_description():
                         "racing_mpc_node.vehicle_model_name": LaunchConfiguration(
                             "mpc_vehicle_model_name"
                         ),
+                        # "racing_mpc_node.full_dynamics": True,
                     },
                 ],
                 remappings=[

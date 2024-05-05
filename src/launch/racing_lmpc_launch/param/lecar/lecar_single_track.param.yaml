@@ -1,8 +1,8 @@
 /**:
   ros__parameters:
     single_track_planar:
-      fd_max: 30.0 # max driving force
-      fb_max: -30.0 # max brake force
+      fd_max: 40.0 # max driving force
+      fb_max: -40.0 # max brake force
       td: 0.1 # time constant for throttle
       tb: 0.1 # time constant for brake
       v_max: 6.0 # max velocity constraint
