@@ -15,7 +15,7 @@
 
 #include "kinematic_bicycle_model/kinematic_bicycle_model.hpp"
 #include "lmpc_utils/utils.hpp"
-#define GRAVITY 9.8
+#define GRAVITY 9.80665
 
 namespace lmpc
 {
