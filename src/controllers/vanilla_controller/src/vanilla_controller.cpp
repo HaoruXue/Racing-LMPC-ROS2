@@ -24,7 +24,7 @@
 
 #include "vanilla_controller/vanilla_controller.hpp"
 
-#define GRAVITY 9.81
+#define GRAVITY 9.80665
 
 namespace lmpc
 {

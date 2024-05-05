@@ -15,8 +15,7 @@
 
 #include "single_track_planar_model/single_track_planar_model.hpp"
 #include "lmpc_utils/utils.hpp"
-#define GRAVITY 9.8
-#define pi 3.14153
+#define GRAVITY 9.80665
 
 namespace lmpc
 {
