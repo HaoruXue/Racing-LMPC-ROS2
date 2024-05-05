@@ -122,9 +122,10 @@ void RacingFollowMPC::build_following_cost(casadi::MX & cost)
     // utils::align_abscissa<MX>(xi(XIndex::PX), x0(XIndex::PX), total_length_) - x0(XIndex::PX);
     const auto x_base = model_->to_base_state()(casadi::MXDict{{"x", xi}, {"u", ui}}).at("x_out");
     const auto dv = x_base(XIndex::VX) - vel_ref_(i);
+    const auto dyaw = x_base(XIndex::YAW) - yaw_ref_(i);
     // const auto dv = x_base(XIndex::VX) - 10.0;
     cost += x_base(XIndex::PY) * x_base(XIndex::PY) * config_->q_contour;
-    cost += x_base(XIndex::YAW) * x_base(XIndex::YAW) * config_->q_heading;
+    cost += dyaw * dyaw * config_->q_heading;
     cost += dv * dv * q_vel_;
     cost += x_base(XIndex::VY) * x_base(XIndex::VY) * config_->q_vy;
     cost += x_base(XIndex::VYAW) * x_base(XIndex::VYAW) * config_->q_vyaw;
@@ -143,12 +144,13 @@ void RacingFollowMPC::build_following_cost(casadi::MX & cost)
   const auto uN = U_(Slice(), config_->N - 2) * scale_u_;
   const auto x_base_N = model_->to_base_state()(casadi::MXDict{{"x", xN}, {"u", uN}}).at("x_out");
   const auto dv = x_base_N(XIndex::VX) - vel_ref_(config_->N - 1);
+  const auto dyaw = x_base_N(XIndex::YAW) - yaw_ref_(config_->N - 1);
   const auto px_N = X_(XIndex::PX, config_->N - 1) * scale_x_(XIndex::PX);
   const auto px_follow_N = opponent_X_ref_(XIndex::PX, config_->N - 1) - follow_distance_(
     config_->N - 1);
   const auto d_px_N = px_N - px_follow_N;
   cost += x_base_N(XIndex::PY) * x_base_N(XIndex::PY) * config_->q_contour * 10.0;
-  cost += x_base_N(XIndex::YAW) * x_base_N(XIndex::YAW) * config_->q_heading * 10.0;
+  cost += dyaw * dyaw * config_->q_heading * 10.0;
   cost += dv * dv * q_vel_ * 10.0;
   cost += x_base_N(XIndex::VY) * x_base_N(XIndex::VY) * config_->q_vy * 10.0;
   cost += x_base_N(XIndex::VYAW) * x_base_N(XIndex::VYAW) * config_->q_vyaw * 10.0;

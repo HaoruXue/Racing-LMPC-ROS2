@@ -4,10 +4,10 @@
       max_cpu_time: 0.085
       max_iter: 200
       tol: 1e-3
-      interface: opti
+      interface: conic
       n: 40
       dt: 0.02
-      margin: -1.0
+      margin: -0.5
       average_track_width: 1.0
       verbose: false
       jit: true
@@ -18,30 +18,30 @@
       q_contour: 1.0
       q_heading: 1.0
       q_boundary: 20.0 # track boundary slack cost. 0 to disable (hard constraint)
-      q_follow: 0.2
+      q_follow: 1.0
       q_vel: 1.0
-      q_vy: 0.01
+      q_vy: 1.0
       q_vyaw: 0.01
       r: [
         1e-5, 0.0,
-        0.0, 1e-3,
+        0.0, 0.1,
       ]
       r_d: [
         1e-5, 0.0,
-        0.0, 1e-3,
+        0.0, 0.01,
       ]
-      max_vel_ref_diff: 1.0 # max difference between reference velocity and actual velocity
+      max_vel_ref_diff: 0.1 # max difference between reference velocity and actual velocity
 
-      x_max: [.inf, .inf, .inf, 6.0, 2.0, 3.0]
-      x_min: [-.inf, -.inf, -.inf, 0.8, -2.0, -3.0]
-      u_max: [19.0, 0.43]
-      u_min: [-19.0, -0.43]
-      du_max: [200.0, 2.5]
-      du_min: [-200.0, -2.5]
+      x_max: [.inf, .inf, .inf, 6.0, 2.0, 4.0]
+      x_min: [-.inf, -.inf, -.inf, 0.5, -2.0, -4.0]
+      u_max: [15.0, 0.38]
+      u_min: [-15.0, -0.38]
+      du_max: [150.0, 2.5]
+      du_min: [-150.0, -2.5]
 
       step_mode: "continuous"
 
-      # LMPC
+      # LMPC 
       learning: false
       convex_hull_slack: [20.0, 20.0, 2.0, 20.0, 20.0, 2.0]
       num_ss_pts: 96

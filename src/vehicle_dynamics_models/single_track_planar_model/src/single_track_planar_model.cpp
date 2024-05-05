@@ -217,6 +217,7 @@ void SingleTrackPlanarModel::compile_dynamics()
   const auto vy = x(XIndex::VY);  // body frame lateral velocity
   // const auto v_sq = vx * vx + vy * vy;
   const auto v_sq = vx * vx;
+  const auto v_sq_signed = vx * utils::casadi_abs(vx);
   // const auto beta = atan2(vy, vx);  // slip angle
   // const auto v = casadi::SX::hypot(vx, vy);  // velocity magnitude
   SX fd, fb, delta;
@@ -268,16 +269,17 @@ void SingleTrackPlanarModel::compile_dynamics()
   const auto N = m * GRAVITY * cos(bank) - m * v_sq * k * sin(bank);  // normal force
   // longitudinal tyre force Fx (eq. 4a, 4b)
   // TODO(haoru): consider differential
-  const auto Fx_f = 0.5 * kd_f * fd + 0.5 * kb_f * fb - 0.5 * fr * N * lr / l;
+  const auto friction = fr * N * utils::casadi_sign(vx);
+  const auto Fx_f = 0.5 * kd_f * fd + 0.5 * kb_f * fb - 0.5 * friction * lr / l;
   const auto Fx_fl = Fx_f;
   // const auto Fx_fr = Fx_f;
-  const auto Fx_r = 0.5 * (1 - kd_f) * fd + 0.5 * (1.0 - kb_f) * fb - 0.5 * fr * N * lf /
+  const auto Fx_r = 0.5 * (1 - kd_f) * fd + 0.5 * (1.0 - kb_f) * fb - 0.5 * friction * lf /
     l;
   const auto Fx_rl = Fx_r;
   // const auto Fx_rr = Fx_r;
 
   // longitudinal acceleration (eq. 9)
-  const auto ax = (fd + fb - 0.5 * cd * rho * A * v_sq - fr * N) / m;
+  const auto ax = (fd + fb - 0.5 * cd * rho * A * v_sq_signed - friction) / m;
 
   // vertical tyre force Fz (eq. 7a, 7b)
   const auto Fz_f = 0.5 * N * lr / (lf + lr) - 0.5 * hcog / (lf + lr) * m * ax + 0.25 *
@@ -290,10 +292,11 @@ void SingleTrackPlanarModel::compile_dynamics()
   // const auto Fz_rr = Fz_r;
 
   // tyre sideslip angles alpha (eq. 6a, 6b)
-  const auto a_fl = delta -
-    atan((lf * omega + vy) / (vx + 1e-3));
+  // const auto a_fl = delta -
+  //   atan((lf * omega + vy) / (vx + 1e-3));
+  const auto a_fl = - atan2((vy + lf * omega) * cos(delta) - vx * sin(delta), vx * cos(delta) + (vy + lf * omega) * sin(delta));
   // const auto a_fr = a_fl;
-  const auto a_rl = atan((lr * omega - vy) / (vx + 1e-3));
+  const auto a_rl = atan2(lr * omega - vy, vx);
   // const auto a_rr = a_rl;
 
   // lateral tyre force Fy (eq. 5)

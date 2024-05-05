@@ -52,6 +52,7 @@ RacingMPC::RacingMPC(
   bank_angle_(opti_.parameter(1, config_->N)),
   curvatures_(opti_.parameter(1, config_->N)),
   vel_ref_(opti_.parameter(1, config_->N)),
+  yaw_ref_(opti_.parameter(1, config_->N)),
   solved_(false),
   sol_(nullptr),
   full_dynamics_(full_dynamics)
@@ -155,6 +156,7 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
   const auto & bound_right = in.at("bound_right");
   const auto & curvatures = in.at("curvatures");
   const auto & vel_ref = in.at("vel_ref");
+  const auto & yaw_ref = in.at("yaw_ref");
   const auto & bank_angle = in.at("bank_angle");
 
   if (config_->learning) {
@@ -199,6 +201,7 @@ void RacingMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, casadi::D
   opti_.set_value(total_length_, total_length);
   opti_.set_value(curvatures_, curvatures);
   opti_.set_value(vel_ref_, vel_ref);
+  opti_.set_value(yaw_ref_, yaw_ref);
   opti_.set_value(bank_angle_, bank_angle);
 
   // initialize subclass variables
@@ -305,9 +308,9 @@ void RacingMPC::build_tracking_cost(casadi::MX & cost)
     // utils::align_abscissa<MX>(xi(XIndex::PX), x0(XIndex::PX), total_length_) - x0(XIndex::PX);
     const auto x_base = model_->to_base_state()(casadi::MXDict{{"x", xi}, {"u", ui}}).at("x_out");
     const auto dv = x_base(XIndex::VX) - vel_ref_(i);
-    // const auto dv = x_base(XIndex::VX) - 10.0;
+    const auto dyaw = x_base(XIndex::YAW) - yaw_ref_(i);
     cost += x_base(XIndex::PY) * x_base(XIndex::PY) * config_->q_contour;
-    cost += x_base(XIndex::YAW) * x_base(XIndex::YAW) * config_->q_heading;
+    cost += dyaw * dyaw * config_->q_heading;
     cost += dv * dv * config_->q_vel;
     cost += x_base(XIndex::VY) * x_base(XIndex::VY) * config_->q_vy;
     cost += x_base(XIndex::VYAW) * x_base(XIndex::VYAW) * config_->q_vyaw;
@@ -321,8 +324,9 @@ void RacingMPC::build_tracking_cost(casadi::MX & cost)
   const auto uN = U_(Slice(), config_->N - 2) * scale_u_;
   const auto x_base_N = model_->to_base_state()(casadi::MXDict{{"x", xN}, {"u", uN}}).at("x_out");
   const auto dv = x_base_N(XIndex::VX) - vel_ref_(config_->N - 1);
+  const auto dyaw = x_base_N(XIndex::YAW) - yaw_ref_(config_->N - 1);
   cost += x_base_N(XIndex::PY) * x_base_N(XIndex::PY) * config_->q_contour * 10.0;
-  cost += x_base_N(XIndex::YAW) * x_base_N(XIndex::YAW) * config_->q_heading * 10.0;
+  cost += dyaw * dyaw * config_->q_heading * 10.0;
   cost += dv * dv * config_->q_vel * 10.0;
   cost += x_base_N(XIndex::VY) * x_base_N(XIndex::VY) * config_->q_vy * 10.0;
   cost += x_base_N(XIndex::VYAW) * x_base_N(XIndex::VYAW) * config_->q_vyaw * 10.0;

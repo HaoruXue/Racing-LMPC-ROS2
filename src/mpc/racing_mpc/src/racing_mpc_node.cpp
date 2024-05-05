@@ -380,6 +380,12 @@ void RacingMPCNode::on_step_timer()
   const auto right_ref = track_->right_boundary_interpolation_function()(abscissa)[0];
   const auto curvature_ref = track_->curvature_interpolation_function()(abscissa)[0];
   auto vel_ref = track_->velocity_interpolation_function()(abscissa)[0];
+  const auto vel_ref_original = vel_ref;
+  // auto vy_ref = track_->lateral_velocity_interpolation_function()(abscissa)[0];
+  // auto yaw_vel_ref = track_->yaw_velocity_interpolation_function()(abscissa)[0];
+  auto yaw_ref = track_->yaw_interpolation_function()(abscissa)[0];
+  auto spline_yaw_ref = track_->yaw_interpolation_spline_function()(abscissa)[0];
+  yaw_ref = utils::align_yaw<DM>(yaw_ref, spline_yaw_ref) - spline_yaw_ref;
   auto bank_angle = track_->bank_interpolation_function()(abscissa)[0];
   const auto current_bank_angle = static_cast<double>(
     track_->bank_interpolation_function()(DM(current_frenet_pose.position.s))[0]);
@@ -405,12 +411,20 @@ void RacingMPCNode::on_step_timer()
       vel_ref(i) = speed_limit_clipped;
     }
   }
+
+  // scale the yaw velocity reference by vel_ref / vel_ref_original
+  // yaw_vel_ref = yaw_vel_ref * vel_ref / vel_ref_original;
+  // vy_ref = vy_ref * vel_ref / vel_ref_original;
+
   speed_limit_lock.unlock();
   speed_scale_lock.unlock();
   sol_in["bound_left"] = left_ref;
   sol_in["bound_right"] = right_ref;
   sol_in["curvatures"] = curvature_ref;
   sol_in["vel_ref"] = vel_ref;
+  // sol_in["vy_ref"] = vy_ref;
+  // sol_in["yaw_vel_ref"] = yaw_vel_ref;
+  sol_in["yaw_ref"] = yaw_ref;
   sol_in["bank_angle"] = bank_angle;
 
   // prepare the follow MPC inputs
@@ -532,9 +546,9 @@ void RacingMPCNode::on_step_timer()
   ego_text_marker.color.g = 1.0;
   ego_text_marker.color.b = 0.0;
   ego_text_marker.color.a = 1.0;
-  ego_text_marker.scale.x = 0.5;
-  ego_text_marker.scale.y = 0.5;
-  ego_text_marker.scale.z = 0.5;
+  ego_text_marker.scale.x = 0.2;
+  ego_text_marker.scale.y = 0.2;
+  ego_text_marker.scale.z = 0.2;
   ego_pub_->publish(ego_vis_msg);
 
   // add current state to safe set

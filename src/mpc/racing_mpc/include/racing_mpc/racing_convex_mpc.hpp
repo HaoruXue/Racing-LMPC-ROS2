@@ -96,6 +96,9 @@ protected:
   casadi::SX bank_angle_;
   casadi::SX curvatures_;
   casadi::SX vel_ref_;
+  // casadi::SX vy_ref_;
+  casadi::SX yaw_ref_;
+  // casadi::SX yaw_rate_ref_;
   // casadi::SX ss_;
   // casadi::SX ss_costs_;  // J in LMPC paper
 

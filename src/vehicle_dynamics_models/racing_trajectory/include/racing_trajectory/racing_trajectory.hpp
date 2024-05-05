@@ -52,7 +52,8 @@ enum TrajectoryIndex : uint8_t
   BANK = 13,
   LON_ACC = 14,
   LAT_ACC = 15,
-  TIME = 16
+  // YAW_RATE = 16,
+  // VY = 17
 };
 
 /**
@@ -158,6 +159,14 @@ public:
   casadi::Function & yaw_interpolation_function();
 
   /**
+   * @brief Exposes the yaw interpolation function.
+   * Takes a abscissa as input and returns the interpolated yaw.
+   *
+   * @return casadi::Function&
+   */
+  casadi::Function & yaw_interpolation_spline_function();
+
+  /**
    * @brief Exposes the velocity interpolation function.
    * Takes a abscissa as input and returns the interpolated velocity.
    *
@@ -165,6 +174,28 @@ public:
    */
   casadi::Function & velocity_interpolation_function();
 
+  // /**
+  //  * @brief Exposes the velocity interpolation function.
+  //  * Takes a abscissa as input and returns the interpolated velocity.
+  //  *
+  //  * @return casadi::Function&
+  //  */
+  // casadi::Function & lateral_velocity_interpolation_function();
+
+  // /**
+  //  * @brief Exposes the yaw velocity interpolation function.
+  //  * Takes a abscissa as input and returns the interpolated velocity.
+  //  *
+  //  * @return casadi::Function&
+  //  */
+  // casadi::Function & yaw_velocity_interpolation_function();
+  
+  /**
+   * @brief Exposes the bank interpolation function.
+   * Takes a abscissa as input and returns the interpolated bank angle.
+   *
+   * @return casadi::Function&
+   */
   casadi::Function & bank_interpolation_function();
 
   const double & total_length() const;
@@ -174,12 +205,15 @@ protected:
   casadi::DM abscissa_;  // stores the abscissa copied from the trajectory table
   casadi::Function norm_2_;  // helper function to compute the norm of all waypoints
   casadi::Function yaw_intp_;  // interpolate yaw
+  casadi::Function yaw_intp_spline_;  // interpolate spline's yaw
   casadi::Function curvature_intp_;  // interpolate curvature
   casadi::Function left_intp_;  // interpolate left boundary
   casadi::Function right_intp_;  // interpolate right boundary
   casadi::Function x_intp_;  // interpolate global x
   casadi::Function y_intp_;  // interpolate global y
   casadi::Function vel_intp_;  // interpolate velocity
+  // casadi::Function vy_intp_;  // interpolate lateral velocity
+  // casadi::Function yaw_vel_intp_;  // interpolate yaw velocity
   casadi::Function bank_intp_;  // interpolate bank angle
   casadi::Function frenet_to_global_;  // frenet to global conversion function
   casadi::Function global_to_frenet_;  // global to frenet conversion function

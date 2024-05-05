@@ -98,9 +98,25 @@ RacingTrajectory::RacingTrajectory(const casadi::DM & traj)
     const auto vel_intp = casadi::interpolant(
       "vel_intp_impl", "bspline",
       {abscissa.get_elements()}, interpolants(TrajectoryIndex::SPEED, Slice()).get_elements());
+    // const auto vy_intp = casadi::interpolant(
+    //   "vy_intp_impl", "bspline",
+    //   {abscissa.get_elements()}, interpolants(TrajectoryIndex::VY, Slice()).get_elements());
+    // const auto yaw_vel_intp = casadi::interpolant(
+    //   "yaw_vel_intp_impl", "bspline",
+    //   {abscissa.get_elements()}, interpolants(TrajectoryIndex::YAW_RATE, Slice()).get_elements());
     const auto bank_intp = casadi::interpolant(
       "bank_intp_impl", "bspline",
       {abscissa.get_elements()}, interpolants(TrajectoryIndex::BANK, Slice()).get_elements());
+
+    // get the yaw interpolation
+    auto yaws = interpolants(TrajectoryIndex::YAW, Slice()).get_elements();
+    for (size_t i = 1; i < yaws.size(); i++) {
+      yaws[i] = utils::align_yaw(yaws[i], yaws[i - 1]);
+    }
+    const auto yaw_intp = casadi::interpolant(
+      "yaw_intp_impl", "bspline",
+      {abscissa.get_elements()}, yaws);
+
     const auto s = MX::sym("s", 1, 1);
     const auto s_mod = utils::align_abscissa<MX>(s, total_length_ / 2.0, total_length_);
     const auto s_mod_sym = MX::sym("s_mod", 1, 1);
@@ -117,14 +133,17 @@ RacingTrajectory::RacingTrajectory(const casadi::DM & traj)
       dx_func(s_mod)[0] * d2y_func(s_mod)[0] - dy_func(s_mod)[0] * d2x_func(s_mod)[0] /
       MX::sqrt(MX::pow(MX::pow(dx_func(s_mod)[0], 2) + MX::pow(dy_func(s_mod)[0], 2), 3));
 
-    yaw_intp_ = Function("yaw_intp", {s}, {yaw});
+    yaw_intp_spline_ = Function("yaw_intp", {s}, {yaw});
     curvature_intp_ = Function("curvature_intp", {s}, {curvature});
     left_intp_ = Function("left_intp", {s}, {left_intp(s_mod)});
     right_intp_ = Function("right_intp", {s}, {right_intp(s_mod)});
     x_intp_ = Function("x_intp", {s}, {x_intp(s_mod)});
     y_intp_ = Function("y_intp", {s}, {y_intp(s_mod)});
     vel_intp_ = Function("vel_intp", {s}, {vel_intp(s_mod)});
+    // vy_intp_ = Function("vy_intp", {s}, {vy_intp(s_mod)});
     bank_intp_ = Function("bank_intp", {s}, {bank_intp(s_mod)});
+    yaw_intp_ = Function("yaw_intp", {s}, {yaw_intp(s_mod)});
+    // yaw_vel_intp_ = Function("yaw_vel_intp", {s}, {yaw_vel_intp(s_mod)});
   }
 
   // build the frenet to global transformation
@@ -136,7 +155,7 @@ RacingTrajectory::RacingTrajectory(const casadi::DM & traj)
     const auto x0 = x_intp_(s_mod)[0];
     const auto y0 = y_intp_(s_mod)[0];
     const auto bank0 = bank_intp_(s_mod)[0];
-    const auto yaw0 = yaw_intp_(s_mod)[0];
+    const auto yaw0 = yaw_intp_spline_(s_mod)[0];
     const auto d_x = -1.0 * sin(yaw0) * t * cos(bank0);
     const auto d_y = cos(yaw0) * t * cos(bank0);
     const auto phi = utils::align_yaw<MX>(yaw0 + xi * cos(bank0), 0.0);
@@ -182,7 +201,7 @@ RacingTrajectory::RacingTrajectory(const casadi::DM & traj)
     s_out = utils::align_abscissa<MX>(s_out, total_length_ / 2.0, total_length_);
     const auto x_out = x_intp_(s_out)[0];
     const auto y_out = y_intp_(s_out)[0];
-    const auto yaw_out = yaw_intp_(s_out)[0];
+    const auto yaw_out = yaw_intp_spline_(s_out)[0];
     const auto bank_out = bank_intp_(s_out)[0];
     const auto t_out = MX::hypot(x - x_out, y - y_out) * utils::lateral_sign<MX>(
       MX::vertcat({x, y}), MX::vertcat({x_out, y_out, yaw_out})) / cos(bank_out);
@@ -227,7 +246,7 @@ void RacingTrajectory::global_to_frenet(
 
     Pose2D p0_g;
     kd_tree_.get_waypoint(idx, p0_g.position.x, p0_g.position.y);
-    p0_g.yaw = static_cast<double>(yaw_intp_(casadi::DM(p0.position.s))[0]);
+    p0_g.yaw = static_cast<double>(yaw_intp_spline_(casadi::DM(p0.position.s))[0]);
     p0.position.t =
       static_cast<double>(distance(global_pose.position, p0_g.position)) * lateral_sign(
       global_pose.position, p0_g);
@@ -284,6 +303,11 @@ casadi::Function & RacingTrajectory::yaw_interpolation_function()
   return yaw_intp_;
 }
 
+casadi::Function & RacingTrajectory::yaw_interpolation_spline_function()
+{
+  return yaw_intp_spline_;
+}
+
 casadi::Function & RacingTrajectory::bank_interpolation_function()
 {
   return bank_intp_;
@@ -293,6 +317,16 @@ casadi::Function & RacingTrajectory::velocity_interpolation_function()
 {
   return vel_intp_;
 }
+
+// casadi::Function & RacingTrajectory::lateral_velocity_interpolation_function()
+// {
+//   return vy_intp_;
+// }
+
+// casadi::Function & RacingTrajectory::yaw_velocity_interpolation_function()
+// {
+//   return yaw_vel_intp_;
+// }
 
 const double & RacingTrajectory::total_length() const
 {

@@ -126,6 +126,18 @@ bool check_size(const T & x, const casadi_int & rows, const casadi_int & cols = 
   return x.size1() == rows && x.size2() == cols;
 }
 
+template<typename T = casadi::DM>
+T casadi_abs(const T & x, const double & eps = 1e-3)
+{
+  return sqrt(x * x + eps * eps);
+}
+
+template<typename T = casadi::DM>
+T casadi_sign(const T & x, const double & eps = 1e-3)
+{
+  return x / casadi_abs(x, eps);
+}
+
 enum TyreIndex : size_t
 {
   FL = 0,

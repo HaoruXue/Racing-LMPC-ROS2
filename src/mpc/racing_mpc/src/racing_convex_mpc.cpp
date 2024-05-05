@@ -51,6 +51,9 @@ RacingConvexMPC::RacingConvexMPC(
   bank_angle_(casadi::SX::sym("bank", 1, config_->N)),
   curvatures_(casadi::SX::sym("k", 1, config_->N)),
   vel_ref_(casadi::SX::sym("vel_ref", 1, config_->N)),
+  // vy_ref_(casadi::SX::sym("vy_ref", 1, config_->N)),
+  yaw_ref_(casadi::SX::sym("yaw_ref", 1, config_->N)),
+  // yaw_rate_ref_(casadi::SX::sym("yaw_vel_ref", 1, config_->N)),
   solved_(false),
   enable_boundary_slack_(static_cast<double>(config_->q_boundary) > 0.0)
 {
@@ -175,6 +178,9 @@ RacingConvexMPC::RacingConvexMPC(
     const auto xi_base =
       model_->to_base_state()(casadi::SXDict{{"x", xi}, {"u", ui}}).at("x_out");
     const auto dv = xi_base(XIndex::VX) - vel_ref_(i);
+    // const auto dvy = xi_base(XIndex::VY) - vy_ref_(i);
+    const auto dyaw = xi_base(XIndex::YAW) - yaw_ref_(i);
+    // const auto dvyaw = xi_base(XIndex::VYAW) - yaw_rate_ref_(i);
     SX q_contour = SX(config_->q_contour);
     SX q_heading = SX(config_->q_heading);
     SX q_vel = SX(config_->q_vel);
@@ -196,10 +202,10 @@ RacingConvexMPC::RacingConvexMPC(
       }
     }
     f += xi_base(XIndex::PY) * xi_base(XIndex::PY) * SX(config_->q_contour);
-    f += xi_base(XIndex::YAW) * xi_base(XIndex::YAW) * SX(config_->q_heading);
+    f += dyaw * dyaw * SX(config_->q_heading);
     f += dv * dv * SX(config_->q_vel);
-    f += xi_base(XIndex::VY) * xi_base(XIndex::VY) * SX(config_->q_vy);
-    f += xi_base(XIndex::VYAW) * xi_base(XIndex::VYAW) * SX(config_->q_vyaw);
+    // f += dvy * dvy * SX(config_->q_vy);
+    // f += dvyaw * dvyaw * SX(config_->q_vyaw);
 
     if (i < static_cast<casadi_int>(config_->N - 1)) {
       // add dynamics constraints
@@ -266,7 +272,12 @@ RacingConvexMPC::RacingConvexMPC(
       SX::reshape(u_ic_, -1, 1), SX::reshape(X_ref_, -1, 1), SX::reshape(U_ref_, -1, 1),
       SX::reshape(bound_left_, -1, 1), SX::reshape(bound_right_, -1, 1),
       SX::reshape(total_length_, -1, 1), SX::reshape(curvatures_, -1, 1),
-      SX::reshape(vel_ref_, -1, 1), SX::reshape(bank_angle_, -1, 1)});
+      SX::reshape(vel_ref_, -1, 1),
+      // SX::reshape(vy_ref_, -1, 1),
+      SX::reshape(yaw_ref_, -1, 1),
+      // SX::reshape(yaw_rate_ref_, -1, 1),
+      SX::reshape(bank_angle_, -1, 1)});
+      
 
   // build the solver
   const casadi::SXDict prob({{"f", f}, {"x", prob_.x}, {"g", prob_.g}, {"p", prob_.p}});
@@ -304,6 +315,9 @@ void RacingConvexMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, cas
   const auto & bound_right = in.at("bound_right");
   const auto & curvatures = in.at("curvatures");
   const auto & vel_ref = in.at("vel_ref");
+  // const auto & vy_ref = in.at("vy_ref");
+  const auto & yaw_ref = in.at("yaw_ref");
+  // const auto & yaw_rate_ref = in.at("yaw_vel_ref");
   const auto & bank_angle = in.at("bank_angle");
   const auto & T_ref = in.at("T_ref");
 
@@ -341,10 +355,18 @@ void RacingConvexMPC::solve(const casadi::DMDict & in, casadi::DMDict & out, cas
 
   casadi::SXVector sub_v = {
     T_ref_, x_ic_, u_ic_, X_ref_, U_ref_, bound_left_, bound_right_, total_length_,
-    curvatures_, vel_ref_, bank_angle_, X_, U_, dU_, boundary_slack_};
+    curvatures_, vel_ref_,
+    // vy_ref_,
+    yaw_ref_,
+    // yaw_rate_ref_, 
+    bank_angle_, X_, U_, dU_, boundary_slack_};
   casadi::SXVector sub_vdef =
   {T_ref, x_ic - x_offset, u_ic, X_ref - x_offset, U_ref, bound_left, bound_right,
-    total_length, curvatures, vel_ref, bank_angle, (X_optm_ref - x_offset) / scale_x_,
+    total_length, curvatures, vel_ref,
+    // vy_ref,
+    yaw_ref,
+    // yaw_rate_ref,
+    bank_angle, (X_optm_ref - x_offset) / scale_x_,
     U_optm_ref / scale_u_,
     dU_optm_ref / scale_u_, 0.0};
   casadi::SXVector sub_ex = {prob_.x, prob_.lbg, prob_.ubg, prob_.lbx, prob_.ubx, prob_.p};
