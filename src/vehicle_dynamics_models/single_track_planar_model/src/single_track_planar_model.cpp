@@ -293,9 +293,11 @@ void SingleTrackPlanarModel::compile_dynamics()
   // tyre sideslip angles alpha (eq. 6a, 6b)
   // const auto a_fl = delta -
   //   atan((lf * omega + vy) / (vx + 1e-3));
-  const auto a_fl = - atan2((vy + lf * omega) * cos(delta) - vx * sin(delta), vx * cos(delta) + (vy + lf * omega) * sin(delta));
+  const auto ftx_f = vx * cos(delta) + (vy + lf * omega) * sin(delta);
+
+  const auto a_fl = - atan2((vy + lf * omega) * cos(delta) - vx * sin(delta), utils::casadi_abs(ftx_f) * utils::casadi_sign(ftx_f));
   // const auto a_fr = a_fl;
-  const auto a_rl = atan2(lr * omega - vy, vx);
+  const auto a_rl = atan2(lr * omega - vy, utils::casadi_abs(vx) * utils::casadi_sign(vx));
   // const auto a_rr = a_rl;
 
   // lateral tyre force Fy (eq. 5)
