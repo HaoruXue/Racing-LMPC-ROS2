@@ -85,8 +85,9 @@ def generate_launch_description():
                         # "racing_simulator.x0": [-100.0, -5.0, 3.14, 15.0, 0.0, 0.0]
                         # "racing_simulator.x0": [50.0, 5.0, 3.14, 15.0, 0.0, 0.0]
                         # "racing_simulator.x0": [-10.0, 2.0, 3.14, 8.0, 0.0, 0.0]
-                        # "racing_simulator.x0": [-350.0, -20.0, 3.14, 15.0, 0.0, 0.0]
-                        "racing_simulator.x0": [-67.9, 247.6, -2.61799, 6.0, 0.0, 0.0]
+                        # "racing_simulator.x0": [-350.0, -20.0, 3.14, 15.0, 0.0, 0.0] # before turn 1
+                        # "racing_simulator.x0": [-67.9, 247.6, -2.61799, 6.0, 0.0, 0.0] # before chicane
+                        "racing_simulator.x0": [125.572, 197.509, 0.52201, 6.0, 0.0, 0.0] # after chicane
                     },
                 ],
                 remappings=[
