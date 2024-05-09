@@ -187,11 +187,11 @@ RacingConvexMPC::RacingConvexMPC(
     SX q_vy = SX(config_->q_vy);
     SX q_vyaw = SX(config_->q_vyaw);
     if (i == static_cast<casadi_int>(config_->N - 1)) {
-      q_contour *= 10.0;
-      q_heading *= 10.0;
-      q_vel *= 10.0;
-      q_vy *= 10.0;
-      q_vyaw *= 10.0;
+      q_contour *= 30.0;
+      q_heading *= 30.0;
+      q_vel *= 30.0;
+      // q_vy *= 10.0;
+      // q_vyaw *= 10.0;
     } else {
       f += SX::mtimes({ui.T(), config_->R, ui});
       f += SX::mtimes({dui.T(), config_->R_d, dui});

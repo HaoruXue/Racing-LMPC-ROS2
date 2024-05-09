@@ -5,10 +5,10 @@
       max_iter: 200
       tol: 1e-3
       interface: conic
-      n: 120
-      dt: 0.025
+      n: 40
+      dt: 0.033
 
-      margin: 0.5
+      margin: -1.0
       average_track_width: 10.0
       verbose: false
       jit: true

@@ -118,7 +118,7 @@ def generate_launch_description():
                     },
                 ],
                 remappings=[],
-                # prefix=['taskset -c 22,23'],
+                prefix=['taskset -c 11,23'],
                 emulate_tty=True,
             ),
             Node(
@@ -140,7 +140,7 @@ def generate_launch_description():
                 remappings=[
                     ("solve_mpc", "mpc_0/solve_mpc"),
                 ],
-                # prefix=['taskset -c 22,23'],
+                prefix=['taskset -c 11,23'],
                 emulate_tty=True,
             ),
         ]
